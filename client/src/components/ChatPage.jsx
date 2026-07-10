@@ -1,9 +1,8 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
-import { Link } from 'react-router-dom';
 import Markdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
-import logo from '../assets/logo.png';
 import { supabase } from '../lib/supabase.js';
+import Sidebar from './Sidebar.jsx';
 
 const MODELS = [
   { id: 'minimaxai/minimax-m3', name: 'MiniMax M3', multimodal: true },
@@ -143,6 +142,16 @@ function renderUserContent(content) {
   return content;
 }
 
+/* ── Timeout wrapper for hanging auth calls ─────────────────── */
+function withTimeout(promise, ms = 15000) {
+  return Promise.race([
+    promise,
+    new Promise((_, reject) =>
+      setTimeout(() => reject(new Error('Request timed out. Check your network and try again.')), ms)
+    ),
+  ]);
+}
+
 export default function ChatPage() {
   const [messages, setMessages] = useState([]);
   const [input, setInput] = useState('');
@@ -155,16 +164,20 @@ export default function ChatPage() {
   const [attachedFiles, setAttachedFiles] = useState([]);
   const [lightboxUrl, setLightboxUrl] = useState(null);
   const [user, setUser] = useState(null);
+  const [currentConversationId, setCurrentConversationId] = useState(null);
   const [authOpen, setAuthOpen] = useState(false);
   const [authMode, setAuthMode] = useState('login');
   const [authEmail, setAuthEmail] = useState('');
   const [authPassword, setAuthPassword] = useState('');
   const [authLoading, setAuthLoading] = useState(false);
   const [authError, setAuthError] = useState(null);
+  const [authSuccessMsg, setAuthSuccessMsg] = useState(null);
+  const [conversationRefetchKey, setConversationRefetchKey] = useState(0);
   const messagesEndRef = useRef(null);
   const textareaRef = useRef(null);
   const abortRef = useRef(null);
   const fileInputRef = useRef(null);
+  const visibleConversationRef = useRef(null); // which conversation the user is viewing
 
   /* ── Auto-scroll ──────────────────────────────────────────── */
   const scrollToBottom = useCallback(() => {
@@ -207,6 +220,46 @@ export default function ChatPage() {
     const text = (overrideText || input).trim();
     if (!text || isLoading) return;
 
+    /* ── If logged in and no conversation yet, create one now ────
+     *  Also update the title from the user's first message so it
+     *  shows something meaningful in the sidebar immediately. */
+    const isFirstMessage = messages.length === 0;
+    let effectiveConversationId = currentConversationId;
+
+    if (user) {
+      const titleSuggestion =
+        text.length > 45 ? text.slice(0, 45) + '…' : text;
+
+      if (!effectiveConversationId) {
+        // No conversation yet — create one with the title already set
+        try {
+          const { data, error } = await supabase
+            .from('conversations')
+            .insert({ user_id: user.id, title: titleSuggestion })
+            .select()
+            .single();
+          if (!error && data) {
+            effectiveConversationId = data.id;
+            setCurrentConversationId(data.id);
+            setConversationRefetchKey((k) => k + 1);
+          }
+        } catch (err) {
+          console.error('Failed to create conversation:', err);
+        }
+      } else if (isFirstMessage) {
+        // Conversation exists on a fresh chat — update the title
+        try {
+          const { error } = await supabase
+            .from('conversations')
+            .update({ title: titleSuggestion, updated_at: new Date().toISOString() })
+            .eq('id', effectiveConversationId);
+          if (!error) setConversationRefetchKey((k) => k + 1);
+        } catch (err) {
+          console.error('Failed to update conversation title:', err);
+        }
+      }
+    }
+
     /* Auto-switch to MiniMax M3 when files are attached — it's the only
        multimodal model we ship, and sending images to a text-only model
        would just waste the round-trip. */
@@ -242,6 +295,7 @@ export default function ChatPage() {
       const decoder = new TextDecoder();
       let assistantText = '';
       let buffer = '';
+      const streamConvId = effectiveConversationId; // captured for background-stream check
 
       setMessages((prev) => [...prev, { role: 'assistant', content: '' }]);
 
@@ -266,11 +320,14 @@ export default function ChatPage() {
             const content = parsed.choices?.[0]?.delta?.content || parsed.content || '';
             if (content) {
               assistantText += content;
-              setMessages((prev) => {
-                const next = [...prev];
-                next[next.length - 1] = { role: 'assistant', content: assistantText };
-                return next;
-              });
+              // Only update live messages if user is still viewing this conversation
+              if (streamConvId === visibleConversationRef.current) {
+                setMessages((prev) => {
+                  const next = [...prev];
+                  next[next.length - 1] = { role: 'assistant', content: assistantText };
+                  return next;
+                });
+              }
             }
           } catch (e) {
             if (e.message && !e.message.includes('JSON')) throw e;
@@ -279,11 +336,34 @@ export default function ChatPage() {
       }
 
       if (!assistantText) {
-        setMessages((prev) => {
-          const next = [...prev];
-          next[next.length - 1] = { role: 'assistant', content: 'No response received. Please try again.' };
-          return next;
-        });
+        // Only update live UI if still viewing this conversation
+        if (streamConvId === visibleConversationRef.current) {
+          setMessages((prev) => {
+            const next = [...prev];
+            next[next.length - 1] = { role: 'assistant', content: 'No response received. Please try again.' };
+            return next;
+          });
+        }
+      }
+
+      /* ── Save messages to Supabase ─────────────────────────── */
+      if (effectiveConversationId) {
+        const assistantReply = assistantText || 'No response received. Please try again.';
+        try {
+          await supabase.from('messages').insert([
+            { conversation_id: effectiveConversationId, role: 'user', content: userMsg.content },
+            { conversation_id: effectiveConversationId, role: 'assistant', content: assistantReply },
+          ]);
+          // Bump updated_at so the sidebar puts it at the top
+          await supabase
+            .from('conversations')
+            .update({ updated_at: new Date().toISOString() })
+            .eq('id', effectiveConversationId);
+          setConversationRefetchKey((k) => k + 1);
+        } catch (err) {
+          console.error('Failed to save messages:', err);
+          setError('Failed to save messages: ' + err.message);
+        }
       }
     } catch (err) {
       if (err.name === 'AbortError') return;
@@ -293,7 +373,7 @@ export default function ChatPage() {
       setIsLoading(false);
       abortRef.current = null;
     }
-  }, [input, isLoading, messages, selectedModel, attachedFiles]);
+  }, [input, isLoading, messages, selectedModel, attachedFiles, user, currentConversationId]);
 
   /* ── Keyboard: Enter to send, Shift+Enter newline ─────────── */
   const handleKeyDown = (e) => {
@@ -310,7 +390,47 @@ export default function ChatPage() {
     setIsLoading(false);
     setSidebarOpen(false);
     setAttachedFiles([]);
+    setCurrentConversationId(null);
   };
+
+  /* ── Select conversation from sidebar ─────────────────────── */
+  const handleSelectConversation = useCallback(async (conversationId) => {
+    setCurrentConversationId(conversationId);
+    visibleConversationRef.current = conversationId;
+    // Don't abort a running stream — it keeps going in the background
+    // and saves to Supabase when done
+    setMessages([]);
+    setError(null);
+    setIsLoading(false);
+    setSidebarOpen(false);
+    setAttachedFiles([]);
+
+    /* Load saved messages from Supabase */
+    try {
+      const { data, error } = await supabase
+        .from('messages')
+        .select('role, content')
+        .eq('conversation_id', conversationId)
+        .order('created_at', { ascending: true });
+      if (!error && data && data.length > 0) {
+        setMessages(data);
+      }
+    } catch (err) {
+      console.error('Failed to load messages:', err);
+      setError('Failed to load messages: ' + err.message);
+    }
+  }, []);
+
+  /* ── Sign out ────────────────────────────────────────────── */
+  const handleSignOut = useCallback(async () => {
+    await supabase.auth.signOut();
+  }, []);
+
+  /* ── Open auth modal ─────────────────────────────────────── */
+  const handleOpenAuth = useCallback((mode) => {
+    setAuthMode(mode || 'login');
+    setAuthOpen(true);
+  }, []);
 
   /* ── Edit: load last user msg back, trim history ──────────── */
   const handleEdit = (idx) => {
@@ -384,97 +504,17 @@ export default function ChatPage() {
   return (
     <div className="fixed inset-0 z-50 flex bg-white">
       {/* ── Sidebar ────────────────────────────────────────────── */}
-      {/* Desktop: always visible. Mobile: toggle via button. */}
-      <aside
-        className={`
-          fixed md:static inset-y-0 left-0 z-40
-          w-60 bg-white flex flex-col border-r border-black/8
-          transition-transform duration-200 ease-[var(--ease-out-expo)]
-          ${sidebarOpen ? 'translate-x-0' : '-translate-x-full md:translate-x-0'}
-        `}
-      >
-        {/* ── Sidebar header ──────────────────────────────────── */}
-        <div className="flex items-center justify-between px-4 py-3">
-          <a href="/" className="flex items-center gap-2.5 group">
-            <span className="w-7 h-7 rounded overflow-hidden flex-shrink-0">
-              <img src={logo} alt="Logo" className="w-full h-full object-cover" />
-            </span>
-            <span className="text-sm font-medium text-black/70 group-hover:text-black transition-colors duration-150">
-              Wystan
-            </span>
-          </a>
-          {/* Mobile close */}
-          <button
-            onClick={() => setSidebarOpen(false)}
-            className="md:hidden w-7 h-7 rounded-lg flex items-center justify-center text-black/40 hover-gate:text-black active:scale-[0.97] transition-all duration-150"
-            aria-label="Close sidebar"
-          >
-            <span className="material-symbols-outlined text-[18px]">close</span>
-          </button>
-        </div>
-
-        {/* ── New chat ────────────────────────────────────────── */}
-        <div className="px-3">
-          <button
-            onClick={handleClear}
-            className="w-full flex items-center gap-2.5 px-3 py-2 rounded-lg text-sm text-black/55 hover-gate:text-black active:scale-[0.97] transition-all duration-150"
-          >
-            <span className="material-symbols-outlined text-[16px]">add</span>
-            New chat
-          </button>
-        </div>
-
-        {/* ── Image generation ──────────────────────────────────── */}
-        <div className="px-3 mt-1">
-          <Link
-            to="/generate"
-            className="w-full flex items-center gap-2.5 px-3 py-2 rounded-lg text-sm text-black/55 hover-gate:text-black active:scale-[0.97] transition-all duration-150"
-          >
-            <span className="material-symbols-outlined text-[16px]">auto_awesome</span>
-            Generate
-          </Link>
-        </div>
-
-        {/* ── Spacer ──────────────────────────────────────────── */}
-        <div className="flex-1" />
-
-        {/* ── Divider ─────────────────────────────────────────── */}
-        <div className="px-3 pb-1">
-          <div className="border-t border-black/8" />
-        </div>
-
-        {/* ── Auth section ────────────────────────────────────── */}
-        <div className="px-3 pb-4 space-y-1">
-          {user ? (
-            <div className="flex items-center justify-between px-3 py-2">
-              <span className="text-sm text-black/50 truncate max-w-[140px]">{user.email}</span>
-              <button
-                onClick={async () => { await supabase.auth.signOut(); }}
-                className="text-xs text-black/40 hover:text-black transition-colors duration-150"
-              >
-                Logout
-              </button>
-            </div>
-          ) : (
-            <>
-              <button
-                onClick={() => { setAuthMode('login'); setAuthOpen(true); }}
-                className="w-full flex items-center gap-2.5 px-3 py-2 rounded-lg text-sm text-black/55 hover-gate:text-black active:scale-[0.97] transition-all duration-150"
-              >
-                <span className="material-symbols-outlined text-[16px]">login</span>
-                Sign in
-              </button>
-              <button
-                onClick={() => { setAuthMode('register'); setAuthOpen(true); }}
-                className="w-full flex items-center gap-2.5 px-3 py-2 rounded-lg text-sm text-black/55 hover-gate:text-black active:scale-[0.97] transition-all duration-150"
-              >
-                <span className="material-symbols-outlined text-[16px]">person_add</span>
-                Register
-              </button>
-            </>
-          )}
-        </div>
-      </aside>
+      <Sidebar
+        user={user}
+        onNewChat={handleClear}
+        currentConversationId={currentConversationId}
+        onSelectConversation={handleSelectConversation}
+        onSignOut={handleSignOut}
+        onOpenAuth={handleOpenAuth}
+        sidebarOpen={sidebarOpen}
+        onCloseSidebar={() => setSidebarOpen(false)}
+        refreshKey={conversationRefetchKey}
+      />
 
       {/* ── Mobile overlay ──────────────────────────────────────── */}
       {sidebarOpen && (
@@ -751,7 +791,7 @@ export default function ChatPage() {
       {authOpen && (
         <div
           className="fixed inset-0 z-[200] bg-black/10 flex items-center justify-center p-4"
-          onClick={() => { setAuthOpen(false); setAuthError(null); setAuthEmail(''); setAuthPassword(''); }}
+          onClick={() => { setAuthOpen(false); setAuthError(null); setAuthSuccessMsg(null); setAuthEmail(''); setAuthPassword(''); }}
         >
           <div
             className="w-full max-w-sm bg-white rounded-2xl shadow-xl border border-black/8 p-6"
@@ -764,7 +804,7 @@ export default function ChatPage() {
                 {authMode === 'login' ? 'Sign in' : 'Create account'}
               </h2>
               <button
-                onClick={() => { setAuthOpen(false); setAuthError(null); setAuthEmail(''); setAuthPassword(''); }}
+                onClick={() => { setAuthOpen(false); setAuthError(null); setAuthSuccessMsg(null); setAuthEmail(''); setAuthPassword(''); }}
                 className="w-7 h-7 rounded-lg flex items-center justify-center text-black/40 hover:text-black active:scale-[0.97] transition-all duration-150"
               >
                 <span className="material-symbols-outlined text-[18px]">close</span>
@@ -776,8 +816,16 @@ export default function ChatPage() {
               onClick={async () => {
                 setAuthLoading(true);
                 setAuthError(null);
-                const { error } = await supabase.auth.signInWithOAuth({ provider: 'google' });
-                if (error) setAuthError(error.message);
+                setAuthSuccessMsg(null);
+                try {
+                  const { error } = await withTimeout(
+                    supabase.auth.signInWithOAuth({ provider: 'google' }),
+                    20000
+                  );
+                  if (error) setAuthError(error.message);
+                } catch (err) {
+                  setAuthError(err.message);
+                }
                 setAuthLoading(false);
               }}
               disabled={authLoading}
@@ -822,22 +870,47 @@ export default function ChatPage() {
                 </div>
               )}
 
+              {authSuccessMsg && (
+                <div className="px-3 py-2 rounded-lg bg-emerald-50 border border-emerald-200 text-[11px] text-emerald-600">
+                  {authSuccessMsg}
+                </div>
+              )}
+
+              {authMode === 'register' && !authSuccessMsg && (
+                <div className="px-3 py-2 rounded-lg bg-blue-50 border border-blue-200 text-[11px] text-blue-600 leading-relaxed">
+                  After registering, check your email to confirm your account before signing in.
+                </div>
+              )}
+
               <button
                 id="auth-submit"
                 onClick={async () => {
                   if (!authEmail || !authPassword) return;
                   setAuthLoading(true);
                   setAuthError(null);
-                  const fn = authMode === 'login'
-                    ? supabase.auth.signInWithPassword
-                    : supabase.auth.signUp;
-                  const { error } = await fn({ email: authEmail, password: authPassword });
-                  if (error) {
-                    setAuthError(error.message);
-                  } else {
-                    setAuthOpen(false);
-                    setAuthEmail('');
-                    setAuthPassword('');
+                  setAuthSuccessMsg(null);
+                  try {
+                    const result = await withTimeout(
+                      authMode === 'login'
+                        ? supabase.auth.signInWithPassword({ email: authEmail, password: authPassword })
+                        : supabase.auth.signUp({ email: authEmail, password: authPassword }),
+                      20000
+                    );
+                    const { data, error } = result;
+                    if (error) {
+                      setAuthError(error.message);
+                    } else if (authMode === 'register' && !data.session) {
+                      // Email confirmation required — Supabase created the user but no session
+                      setAuthSuccessMsg('Account created! Check your email to confirm your sign-in.');
+                      setAuthEmail('');
+                      setAuthPassword('');
+                    } else {
+                      setAuthOpen(false);
+                      setAuthEmail('');
+                      setAuthPassword('');
+                    }
+                  } catch (err) {
+                    setAuthError(err.message);
                   }
                   setAuthLoading(false);
                 }}
