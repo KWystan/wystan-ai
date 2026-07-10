@@ -1,0 +1,135 @@
+@import "tailwindcss";
+
+/* ── Design Engineering theme (Emil Kowalski) ──────────────
+ *  Mode:   Light — white #ffffff bg, black #000000 text
+ *  Feel:   Clean paper, compressed, outlined
+ *  Motion: Only transform & opacity, under 300ms, custom ease
+ * ──────────────────────────────────────────────────────── */
+
+@theme {
+  --ease-out-expo: cubic-bezier(0.16, 1, 0.3, 1);
+  --ease-in-out-expo: cubic-bezier(0.65, 0, 0.35, 1);
+  --ease-spring: cubic-bezier(0.34, 1.56, 0.64, 1);
+
+  --animate-fade-up: fade-up 0.25s var(--ease-out-expo) both;
+  --animate-scale-in: scale-in 0.25s var(--ease-out-expo) both;
+  --animate-float: float 4s var(--ease-in-out-expo) infinite;
+  --animate-blink: blink 0.7s step-end infinite;
+
+  --font-magazine: 'Playfair Display', Georgia, serif;
+  --font-cursive: 'Dancing Script', cursive;
+}
+
+/* ── Entrance keyframes ─────────────────────────────────── */
+@keyframes fade-up {
+  from { opacity: 0; transform: translateY(10px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+@keyframes scale-in {
+  from { opacity: 0; transform: scale(0.95); }
+  to   { opacity: 1; transform: scale(1); }
+}
+@keyframes float {
+  0%, 100% { transform: translateY(0); }
+  50%      { transform: translateY(-5px); }
+}
+@keyframes blink {
+  0%, 100% { opacity: 1; }
+  50%      { opacity: 0; }
+}
+
+/* ── Material Symbols — thinner, lighter weight ────────── */
+.material-symbols-outlined {
+  font-family: 'Material Symbols Outlined';
+  font-weight: normal;
+  font-style: normal;
+  font-size: 24px;
+  line-height: 1;
+  letter-spacing: normal;
+  text-transform: none;
+  display: inline-block;
+  white-space: nowrap;
+  word-wrap: normal;
+  direction: ltr;
+  -webkit-font-smoothing: antialiased;
+  font-variation-settings: 'wght' 280, 'opsz' 20;
+}
+
+/* ── Hover variant gated to devices that actually hover ─── */
+@media (hover: hover) and (pointer: fine) {
+  .hover-gate\:border-black\/20:hover { border-color: rgba(0,0,0,0.20); }
+  .hover-gate\:border-black\/25:hover { border-color: rgba(0,0,0,0.25); }
+  .hover-gate\:border-black\/35:hover { border-color: rgba(0,0,0,0.35); }
+  .hover-gate\:border-black\/50:hover { border-color: rgba(0,0,0,0.50); }
+  .hover-gate\:text-black:hover       { color: #000; }
+  .hover-gate\:text-black\/70:hover   { color: rgba(0,0,0,0.70); }
+  .hover-gate\:text-black\/80:hover   { color: rgba(0,0,0,0.80); }
+  .hover-gate\:text-black\/90:hover   { color: rgba(0,0,0,0.90); }
+  .hover-gate\:bg-black\/5:hover      { background-color: rgba(0,0,0,0.05); }
+  .hover-gate\:bg-black\/\[0\.03\]:hover { background-color: rgba(0,0,0,0.03); }
+}
+
+/* ── Base reset ─────────────────────────────────────────── */
+html {
+  scroll-behavior: smooth;
+  background: #fff;
+  color: #000;
+}
+
+body {
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  background: #fff;
+}
+
+/* ── Light paper texture ─────────────────────────────────── */
+body::before {
+  content: '';
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  z-index: 9999;
+  opacity: 0.28;
+  background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.65' numOctaves='5' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+  background-repeat: repeat;
+  background-size: 256px 256px;
+  mix-blend-mode: multiply;
+}
+
+body::after {
+  content: '';
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  z-index: 9998;
+  opacity: 0.08;
+  background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='1.8' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+  background-repeat: repeat;
+  background-size: 200px 200px;
+  mix-blend-mode: multiply;
+}
+
+/* ── Scroll reveal — fade + subtle slide up ────────────── */
+.scroll-reveal {
+  opacity: 0;
+  transform: translateY(28px);
+  transition: opacity 0.7s cubic-bezier(0.16, 1, 0.3, 1),
+              transform 0.7s cubic-bezier(0.16, 1, 0.3, 1);
+}
+.scroll-reveal.revealed {
+  opacity: 1;
+  transform: translateY(0);
+}
+
+/* ── prefers-reduced-motion ─────────────────────────────── */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+  html { scroll-behavior: auto; }
+}
