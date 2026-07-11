@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import { supabase } from '../lib/supabase.js';
 import logo from '../assets/logo.png';
 
@@ -23,7 +23,6 @@ export default function Sidebar({
 
   /* ── UI state ─────────────────────────────────────────────── */
   const [projectsExpanded, setProjectsExpanded] = useState(true);
-  const [expandedProjects, setExpandedProjects] = useState(new Set());
   const [kebabOpenId, setKebabOpenId] = useState(null); // conversation id with open kebab
   const [kebabProjectId, setKebabProjectId] = useState(null); // project id with open kebab
   const [userMenuOpen, setUserMenuOpen] = useState(false);
@@ -39,6 +38,7 @@ export default function Sidebar({
 
   const kebabRef = useRef(null);
   const userMenuRef = useRef(null);
+  const navigate = useNavigate();
 
   /* ── Close kebab on click outside ─────────────────────────── */
   useEffect(() => {
@@ -49,8 +49,11 @@ export default function Sidebar({
         setKebabProjectId(null);
       }
     };
-    window.addEventListener('mousedown', handler);
-    return () => window.removeEventListener('mousedown', handler);
+    // Use click not mousedown — mousedown races with the toggle button's
+    // onClick (which calls stopPropagation), causing a flicker when
+    // clicking the toggle to refocus the page.
+    window.addEventListener('click', handler);
+    return () => window.removeEventListener('click', handler);
   }, [kebabOpenId, kebabProjectId]);
 
   /* ── Close user menu on click outside ─────────────────────── */
@@ -61,8 +64,8 @@ export default function Sidebar({
         setUserMenuOpen(false);
       }
     };
-    window.addEventListener('mousedown', handler);
-    return () => window.removeEventListener('mousedown', handler);
+    window.addEventListener('click', handler);
+    return () => window.removeEventListener('click', handler);
   }, [userMenuOpen]);
 
   /* ── Fetch conversations ──────────────────────────────────── */
@@ -246,20 +249,7 @@ export default function Sidebar({
     setKebabOpenId(null);
   }, []);
 
-  /* ── Toggle project expand ────────────────────────────────── */
-  const toggleProject = (id) => {
-    setExpandedProjects((prev) => {
-      const next = new Set(prev);
-      if (next.has(id)) next.delete(id);
-      else next.add(id);
-      return next;
-    });
-  };
-
   /* ── Conversations scoped to a project or unassigned ──────── */
-  const conversationsForProject = (projectId) =>
-    conversations.filter((c) => c.project_id === projectId);
-
   const unassignedConversations = conversations.filter((c) => !c.project_id);
 
   /* ── Current conversation title for display ───────────────── */
@@ -401,8 +391,9 @@ export default function Sidebar({
       className={`
         fixed md:static inset-y-0 left-0 z-40
         w-60 bg-white flex flex-col border-r border-black/8
-        transition-transform duration-200 ease-[var(--ease-out-expo)]
+        transition-transform md:transition-none duration-200 ease-[var(--ease-out-expo)]
         ${sidebarOpen ? 'translate-x-0' : '-translate-x-full md:translate-x-0'}
+        [contain:paint_layout]
       `}
     >
       {/* ── Logo / brand ──────────────────────────────────────── */}
@@ -532,16 +523,12 @@ export default function Sidebar({
                   ) : (
                     projects.map((project) => (
                       <div key={project.id}>
-                        <div className="relative group flex items-center px-2 py-1 rounded-lg hover:bg-black/[0.03] transition-colors duration-150">
-                          <button
-                            onClick={() => toggleProject(project.id)}
-                            className="flex items-center gap-1 flex-1 min-w-0"
-                          >
-                            <span className="material-symbols-outlined text-[13px] text-black/25 flex-shrink-0">
-                              {expandedProjects.has(project.id) ? 'expand_more' : 'chevron_right'}
-                            </span>
-                            <span className="text-xs text-black/50 truncate">{project.name}</span>
-                          </button>
+                        <div
+                          className="relative group flex items-center px-2 py-1 rounded-lg cursor-pointer hover:bg-black/[0.03] transition-colors duration-150 [backface-visibility:hidden]"
+                          onClick={() => { navigate(`/project/${project.id}`); onCloseSidebar?.(); }}
+                        >
+                          <span className="material-symbols-outlined text-[16px] text-black/30 mr-2 flex-shrink-0">folder</span>
+                          <span className="text-xs text-black/50 truncate flex-1">{project.name}</span>
                           <div className="flex-shrink-0 relative">
                             <button
                               onClick={(e) => { e.stopPropagation(); setKebabProjectId(kebabProjectId === project.id ? null : project.id); setKebabOpenId(null); }}
@@ -553,38 +540,6 @@ export default function Sidebar({
                             <ProjectKebab projectId={project.id} />
                           </div>
                         </div>
-                        {/* Nested conversations */}
-                        {expandedProjects.has(project.id) && (
-                          <div className="ml-4 space-y-0.5">
-                            {conversationsForProject(project.id).length === 0 ? (
-                              <div className="px-3 py-1 text-[10px] text-black/20 italic">Empty project</div>
-                            ) : (
-                              conversationsForProject(project.id).map((conv) => (
-                                <div
-                                  key={conv.id}
-                                  className={`relative group flex items-center px-2 py-1 rounded-lg cursor-pointer transition-colors duration-150 ${
-                                    conv.id === currentConversationId
-                                      ? 'bg-black/5 text-black'
-                                      : 'text-black/50 hover:bg-black/[0.03] hover:text-black/70'
-                                  }`}
-                                  onClick={() => onSelectConversation?.(conv.id)}
-                                >
-                                  <span className="text-xs truncate flex-1">{conv.title}</span>
-                                  <div className="flex-shrink-0 relative">
-                                    <button
-                                      onClick={(e) => { e.stopPropagation(); setKebabOpenId(kebabOpenId === conv.id ? null : conv.id); setKebabProjectId(null); }}
-                                      className="opacity-0 group-hover:opacity-100 w-4 h-4 rounded flex items-center justify-center text-black/20 hover:text-black/50 hover:bg-black/5 transition-all duration-150"
-                                      aria-label="Conversation menu"
-                                    >
-                                      <span className="material-symbols-outlined text-[11px]">more_horiz</span>
-                                    </button>
-                                    <KebabMenu conversationId={conv.id} />
-                                  </div>
-                                </div>
-                              ))
-                            )}
-                          </div>
-                        )}
                       </div>
                     ))
                   )}
@@ -612,7 +567,7 @@ export default function Sidebar({
                   {unassignedConversations.map((conv) => (
                     <div
                       key={conv.id}
-                      className={`relative group flex items-center px-2 py-1.5 rounded-lg cursor-pointer transition-colors duration-150 ${
+                      className={`relative group flex items-center px-2 py-1.5 rounded-lg cursor-pointer transition-colors duration-150 [backface-visibility:hidden] ${
                         conv.id === currentConversationId
                           ? 'bg-black/5 text-black'
                           : 'text-black/50 hover:bg-black/[0.03] hover:text-black/70'
