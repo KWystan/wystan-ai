@@ -466,6 +466,46 @@ app.post('/api/generate', async (req, res) => {
   }
 });
 
+// ── Web search (Tavily) ────────────────────────────────────────────
+const TAVILY_API_KEY = process.env.TAVILY_API_KEY;
+
+app.post('/api/search', async (req, res) => {
+  try {
+    const { query } = req.body;
+
+    if (!query || !query.trim()) {
+      return res.status(400).json({ error: 'Query is required' });
+    }
+
+    if (!TAVILY_API_KEY) {
+      return res.status(503).json({ error: 'Web search is not configured.' });
+    }
+
+    const tavRes = await fetch('https://api.tavily.com/search', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        api_key: TAVILY_API_KEY,
+        query: query.trim(),
+        max_results: 5,
+        include_answer: true,
+      }),
+    });
+
+    if (!tavRes.ok) {
+      const errText = await tavRes.text();
+      console.error('Tavily error:', tavRes.status, errText);
+      return res.status(502).json({ error: 'Search service returned an error.' });
+    }
+
+    const data = await tavRes.json();
+    res.json(data);
+  } catch (err) {
+    console.error('Search error:', err);
+    res.status(500).json({ error: 'Something went wrong.' });
+  }
+});
+
 // ── Multer / file-size error handler ────────────────────────────
 app.use((err, req, res, next) => {
   if (err instanceof multer.MulterError) {
