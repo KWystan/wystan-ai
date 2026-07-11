@@ -176,13 +176,6 @@ export default function ProjectPage() {
             >
               <span className="material-symbols-outlined text-[18px]">menu</span>
             </button>
-            <Link
-              to="/chat"
-              className="w-8 h-8 rounded-lg border border-black/12 flex items-center justify-center text-black/50 hover-gate:border-black/35 hover-gate:text-black active:scale-[0.97] transition-all duration-150 [backface-visibility:hidden]"
-              aria-label="Back to chat"
-            >
-              <span className="material-symbols-outlined text-[18px]">arrow_back</span>
-            </Link>
             <span className="material-symbols-outlined text-[20px] text-black/40">folder</span>
             <span className="text-sm font-medium text-black/70 truncate">
               {project?.name || 'Loading…'}
