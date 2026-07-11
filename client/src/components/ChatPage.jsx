@@ -550,8 +550,16 @@ export default function ChatPage() {
       : selectedModel;
     const isMultimodal = MODELS.find((m) => m.id === effectiveModel)?.multimodal;
 
-    /* ── Auto web search ────────────────────────────────── */
-    let searchMsg = null;
+    /* ── Show user message immediately ──────────────────── */
+    const userMsg = { role: 'user', content: buildUserContent(text, isMultimodal, attachedFiles) };
+    let updated = [...messages, userMsg];
+    setMessages(updated);
+    setInput('');
+    setIsLoading(true);
+    setError(null);
+    setAttachedFiles([]);
+
+    /* ── Auto web search (background, inserts before message) ── */
     if (text && await needsWebSearch(text)) {
       try {
         const searchRes = await fetch('/api/search', {
@@ -566,24 +574,18 @@ export default function ChatPage() {
               `${i + 1}. ${r.title}\n   ${(r.content || '').slice(0, 500)}`
             );
             const summary = searchData.answer ? `\n\nSummary: ${searchData.answer}` : '';
-            searchMsg = {
+            const searchMsg = {
               role: 'user',
               content: `[Web search results for "${text}"]\n${lines.join('\n')}${summary}`,
             };
+            updated = [...updated.slice(0, -1), searchMsg, userMsg];
+            setMessages(updated);
           }
         }
       } catch (err) {
         console.error('Web search failed:', err);
       }
     }
-
-    const userMsg = { role: 'user', content: buildUserContent(text, isMultimodal, attachedFiles) };
-    const updated = searchMsg ? [...messages, searchMsg, userMsg] : [...messages, userMsg];
-    setMessages(updated);
-    setInput('');
-    setIsLoading(true);
-    setError(null);
-    setAttachedFiles([]);
 
     try {
       const controller = new AbortController();
