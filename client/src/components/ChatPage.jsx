@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
+import { useParams } from 'react-router-dom';
 import Markdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import { supabase } from '../lib/supabase.js';
@@ -18,6 +19,184 @@ const SUGGESTIONS = [
   'What are the best practices for REST APIs?',
 ];
 
+/* ── File preview modal (overlay for viewing attached files) ───── */
+function FilePreviewModal({ file, onClose }) {
+  const [page, setPage] = useState(0);
+
+  useEffect(() => {
+    const handler = (e) => { if (e.key === 'Escape') onClose(); };
+    window.addEventListener('keydown', handler);
+    return () => window.removeEventListener('keydown', handler);
+  }, [onClose]);
+
+  if (!file) return null;
+
+  const isImage = file.group === 'image';
+  const isPdf = file.type === 'pdf' && file.pages?.length;
+  const hasContent = !!file.content;
+
+  const fileIcon = () => {
+    if (file.type === 'image') return 'image';
+    if (file.type === 'pdf') return 'picture_as_pdf';
+    if (file.type === 'docx' || file.type === 'doc') return 'description';
+    if (file.type === 'pptx' || file.type === 'ppt') return 'slideshow';
+    if (file.type === 'xlsx' || file.type === 'xls' || file.type === 'csv' || file.type === 'tsv') return 'table_chart';
+    if (file.type === 'code') return 'code';
+    if (file.group === 'text') return 'article';
+    return 'insert_drive_file';
+  };
+
+  return (
+    <div
+      className="fixed inset-0 z-[110] bg-black/70 flex items-center justify-center p-4"
+      onClick={onClose}
+    >
+      <div
+        className="relative bg-white rounded-xl shadow-2xl max-w-4xl w-full max-h-[90vh] flex flex-col overflow-hidden"
+        onClick={(e) => e.stopPropagation()}
+      >
+        {/* ── Header ──────────────────────────────────────────── */}
+        <div className="flex items-center justify-between px-4 py-3 border-b border-black/8 shrink-0">
+          <div className="flex items-center gap-2 min-w-0">
+            <span className="material-symbols-outlined text-[18px] text-black/40">
+              {fileIcon()}
+            </span>
+            <span className="text-sm font-medium text-black truncate">{file.filename}</span>
+            {file.language && (
+              <span className="text-[10px] uppercase tracking-wider text-black/30 bg-black/5 rounded px-1.5 py-0.5 shrink-0">
+                {file.language}
+              </span>
+            )}
+            <span className="text-[11px] text-black/30 shrink-0">
+              {(file.size / 1024).toFixed(1)} KB
+            </span>
+          </div>
+          <div className="flex items-center gap-1 shrink-0">
+            <button
+              onClick={() => {
+                // Determine download URL: images use data, PDF pages use first page, others try content
+                const href = file.data || file.pages?.[0] || null;
+                if (!href) return;
+                const a = document.createElement('a');
+                a.href = href;
+                a.download = file.filename;
+                a.click();
+              }}
+              className="w-8 h-8 rounded-lg flex items-center justify-center text-black/40 hover-gate:text-black hover-gate:bg-black/5 active:scale-[0.92] transition-all duration-150"
+              aria-label="Download file"
+            >
+              <span className="material-symbols-outlined text-[18px]">download</span>
+            </button>
+            <button
+              onClick={onClose}
+              className="w-8 h-8 rounded-lg flex items-center justify-center text-black/40 hover-gate:text-black hover-gate:bg-black/5 active:scale-[0.92] transition-all duration-150"
+            >
+              <span className="material-symbols-outlined text-[18px]">close</span>
+            </button>
+          </div>
+        </div>
+
+        {/* ── Body ────────────────────────────────────────────── */}
+        <div className="flex-1 overflow-auto min-h-0">
+          {isImage && (
+            <div className="flex items-center justify-center p-4">
+              <img
+                src={file.data}
+                alt={file.filename}
+                className="max-w-full max-h-[75vh] rounded-lg object-contain"
+                onClick={(e) => e.stopPropagation()}
+              />
+            </div>
+          )}
+
+          {isPdf && (
+            <div className="flex flex-col items-center p-4 gap-3">
+              {/* Page navigation */}
+              <div className="flex items-center gap-3 shrink-0">
+                <button
+                  onClick={() => setPage((p) => Math.max(0, p - 1))}
+                  disabled={page === 0}
+                  className="w-8 h-8 rounded-lg flex items-center justify-center text-black/40 hover-gate:text-black hover-gate:bg-black/5 disabled:opacity-20 disabled:pointer-events-none active:scale-[0.92] transition-all duration-150"
+                >
+                  <span className="material-symbols-outlined text-[18px]">chevron_left</span>
+                </button>
+                <span className="text-xs text-black/40 font-medium min-w-[4rem] text-center">
+                  {page + 1} / {file.pages.length}
+                </span>
+                <button
+                  onClick={() => setPage((p) => Math.min(file.pages.length - 1, p + 1))}
+                  disabled={page >= file.pages.length - 1}
+                  className="w-8 h-8 rounded-lg flex items-center justify-center text-black/40 hover-gate:text-black hover-gate:bg-black/5 disabled:opacity-20 disabled:pointer-events-none active:scale-[0.92] transition-all duration-150"
+                >
+                  <span className="material-symbols-outlined text-[18px]">chevron_right</span>
+                </button>
+              </div>
+              {/* Page screenshot */}
+              <img
+                src={file.pages[page]}
+                alt={`Page ${page + 1}`}
+                className="w-full max-w-2xl rounded-lg border border-black/8 shadow-sm"
+              />
+            </div>
+          )}
+
+          {hasContent && !isImage && (
+            <pre className="p-4 text-[13px] leading-relaxed font-mono text-black/75 whitespace-pre-wrap overflow-x-auto">
+              {file.content}
+            </pre>
+          )}
+
+          {!isImage && !hasContent && !isPdf && (
+            <div className="flex flex-col items-center justify-center p-8 text-black/40">
+              <span className="material-symbols-outlined text-3xl mb-2">visibility_off</span>
+              <p className="text-sm">No preview available for this file.</p>
+            </div>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+/* ── Code panel component (language label + copy button) ────────── */
+function CodePanel({ language, codeString, children }) {
+  const [copied, setCopied] = useState(false);
+
+  const handleCopy = () => {
+    navigator.clipboard.writeText(codeString).then(() => {
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    }).catch(() => {});
+  };
+
+  return (
+    <div className="my-3 rounded-lg overflow-hidden border border-black/8 bg-[#f8f8f8]">
+      {/* Header */}
+      <div className="flex items-center justify-between px-3 py-1.5 bg-black/5 border-b border-black/8 select-none">
+        <span className="text-[11px] font-medium text-black/40 uppercase tracking-wider">
+          {language || 'code'}
+        </span>
+        <button
+          onClick={handleCopy}
+          className="hover-gate:opacity-100 flex items-center gap-1 text-[11px] font-medium text-black/40 hover:text-black/60 transition-colors duration-150"
+        >
+          <span
+            className="material-symbols-outlined text-[14px]"
+            style={{ fontVariationSettings: "'wght' 280, 'opsz' 20" }}
+          >
+            {copied ? 'check' : 'content_copy'}
+          </span>
+          {copied ? 'Copied' : 'Copy'}
+        </button>
+      </div>
+      {/* Code area */}
+      <pre className="px-3 py-2.5 overflow-x-auto text-[13px] leading-relaxed font-mono text-black/75 whitespace-pre m-0 border-0 bg-transparent">
+        <code className="text-[13px] font-mono">{children}</code>
+      </pre>
+    </div>
+  );
+}
+
 function renderMessageText(text) {
   return (
     <Markdown
@@ -27,6 +206,22 @@ function renderMessageText(text) {
           return <p className="my-1.5 first:mt-0 last:mb-0 leading-relaxed">{children}</p>;
         },
         pre({ children }) {
+          // Detect fenced code blocks via the code child's className
+          const codeChild = children?.props?.children;
+          const className = children?.props?.className || '';
+          const isFenced = className.startsWith('language-');
+
+          if (isFenced) {
+            const language = className.replace('language-', '');
+            const codeString = String(codeChild || '');
+            return (
+              <CodePanel language={language} codeString={codeString}>
+                {codeChild}
+              </CodePanel>
+            );
+          }
+
+          // Fallback: plain pre block (edge case like indented code)
           return (
             <pre className="bg-black/5 border border-black/8 rounded-lg px-3 py-2.5 my-2 overflow-x-auto text-[13px] leading-relaxed font-mono text-black/75 whitespace-pre-wrap">
               {children}
@@ -99,18 +294,16 @@ function renderMessageText(text) {
 function buildUserContent(text, isMultimodal, attachedFiles) {
   if (!attachedFiles || attachedFiles.length === 0) return text;
 
-  // Multimodal: send images / PDF page renders directly as image_url blocks
   if (isMultimodal) {
     const content = [{ type: 'text', text }];
     for (const file of attachedFiles) {
-      if (file.type === 'image') {
+      if (file.group === 'image') {
         content.push({ type: 'image_url', image_url: { url: file.data } });
-      } else if (file.type === 'pdf' && file.pages) {
-        for (const pageUrl of file.pages) {
-          content.push({ type: 'image_url', image_url: { url: pageUrl } });
-        }
-      } else if (file.type === 'text' && file.content) {
-        content[0].text += `\n\n--- ${file.filename} ---\n${file.content}`;
+      } else if (file.content) {
+        const language = file.language ? ` (${file.language})` : '';
+        content[0].text += `\n\n--- ${file.filename}${language} ---\n${file.content}`;
+      } else {
+        content[0].text += `\n\n[Attached: ${file.filename}]`;
       }
     }
     return content;
@@ -118,9 +311,12 @@ function buildUserContent(text, isMultimodal, attachedFiles) {
 
   // Text-only model: build a single tagged string
   const parts = attachedFiles.map((f) => {
-    if (f.type === 'image') return `[Attached image: ${f.filename}]`;
-    if (f.type === 'pdf') return `[Attached PDF: ${f.filename} (${f.pages?.length || '?'} pages)]`;
-    return `[Attached file: ${f.filename} (${f.mimetype})]`;
+    if (f.group === 'image') return `[Attached image: ${f.filename}]`;
+    if (f.content) {
+      const lang = f.language ? ` (${f.language})` : '';
+      return `[${f.filename}${lang}]\n${f.content}`;
+    }
+    return `[Attached: ${f.filename}]`;
   });
   return parts.join('\n') + '\n' + text;
 }
@@ -163,6 +359,8 @@ export default function ChatPage() {
   const [copiedIdx, setCopiedIdx] = useState(null);
   const [attachedFiles, setAttachedFiles] = useState([]);
   const [lightboxUrl, setLightboxUrl] = useState(null);
+  const [previewFile, setPreviewFile] = useState(null);
+  const [isUploading, setIsUploading] = useState(false);
   const [user, setUser] = useState(null);
   const [currentConversationId, setCurrentConversationId] = useState(null);
   const [authOpen, setAuthOpen] = useState(false);
@@ -178,6 +376,50 @@ export default function ChatPage() {
   const abortRef = useRef(null);
   const fileInputRef = useRef(null);
   const visibleConversationRef = useRef(null); // which conversation the user is viewing
+  const { conversationId: urlConversationId } = useParams();
+  const hasLoadedFromUrl = useRef(false);
+
+  /* ── Load conversation from URL param ──────────────────── */
+  useEffect(() => {
+    if (!urlConversationId) {
+      hasLoadedFromUrl.current = false;
+      return;
+    }
+    if (hasLoadedFromUrl.current) return;
+    hasLoadedFromUrl.current = true;
+
+    setCurrentConversationId(urlConversationId);
+    visibleConversationRef.current = urlConversationId;
+    setMessages([]);
+    setError(null);
+    setIsLoading(false);
+    setSidebarOpen(false);
+    setAttachedFiles([]);
+
+    supabase
+      .from('messages')
+      .select('role, content')
+      .eq('conversation_id', urlConversationId)
+      .order('created_at', { ascending: true })
+      .then(({ data, error }) => {
+        if (!error && data && data.length > 0) {
+          setMessages(data);
+        }
+      })
+      .catch((err) => {
+        console.error('Failed to load messages:', err);
+        setError('Failed to load messages: ' + err.message);
+      });
+  }, [urlConversationId]);
+
+  /* ── Accept initial text from navigation state ────────── */
+  useEffect(() => {
+    if (urlConversationId) return;
+    const state = window.history.state?.usr;
+    if (state?.initialText) {
+      setInput(state.initialText);
+    }
+  }, []); // once on mount
 
   /* ── Auto-scroll ──────────────────────────────────────────── */
   const scrollToBottom = useCallback(() => {
@@ -260,10 +502,10 @@ export default function ChatPage() {
       }
     }
 
-    /* Auto-switch to MiniMax M3 when files are attached — it's the only
-       multimodal model we ship, and sending images to a text-only model
-       would just waste the round-trip. */
-    const effectiveModel = attachedFiles.length > 0
+    /* Auto-switch to MiniMax M3 when *images* are attached — text-only
+       models can't display images, but they handle code/doc text fine. */
+    const hasImages = attachedFiles.some((f) => f.group === 'image');
+    const effectiveModel = hasImages
       ? MODELS.find((m) => m.multimodal)?.id || selectedModel
       : selectedModel;
     const isMultimodal = MODELS.find((m) => m.id === effectiveModel)?.multimodal;
@@ -467,6 +709,8 @@ export default function ChatPage() {
     const files = Array.from(e.target.files || []);
     if (files.length === 0) return;
 
+    setIsUploading(true);
+    setError(null);
     const results = [];
 
     for (const file of files) {
@@ -479,11 +723,16 @@ export default function ChatPage() {
           body: formData,
         });
 
-        if (!res.ok) throw new Error('Upload failed');
-        const data = await res.json();
+        const data = await res.json().catch(() => ({}));
+
+        if (!res.ok) {
+          throw new Error(data.error || `Upload failed (${res.status})`);
+        }
         results.push(data);
       } catch (err) {
-        setError(`Failed to upload ${file.name}`);
+        setError(err.message.includes('413') || err.message.includes('too large')
+          ? `"${file.name}" is too large. Maximum file size is 10 MB.`
+          : `Failed to upload "${file.name}": ${err.message}`);
       }
     }
 
@@ -495,6 +744,7 @@ export default function ChatPage() {
     if (fileInputRef.current) {
       fileInputRef.current.value = '';
     }
+    setIsUploading(false);
   };
 
   const handleAttachClick = () => {
@@ -722,19 +972,25 @@ export default function ChatPage() {
                 {attachedFiles.map((f, i) => (
                   <div
                     key={i}
-                    className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg bg-black/5 border border-black/10 text-xs text-black/60"
+                    className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg bg-black/5 border border-black/10 text-xs text-black/60 cursor-pointer hover-gate:bg-black/10 hover-gate:border-black/20 transition-all duration-150 group"
+                    onClick={() => setPreviewFile(f)}
                   >
-                    <span className="material-symbols-outlined text-[14px]">
-                      {f.type === 'image' ? 'image' : f.type === 'pdf' ? 'picture_as_pdf' : 'description'}
+                    <span className="material-symbols-outlined text-[14px] shrink-0">
+                      {f.group === 'image' ? 'image' : f.type === 'pdf' ? 'picture_as_pdf' : f.language ? 'code' : f.type === 'docx' || f.type === 'doc' ? 'description' : f.type === 'pptx' || f.type === 'ppt' ? 'slideshow' : f.group === 'table' ? 'table_chart' : 'description'}
                     </span>
-                    <span className="truncate max-w-[140px]">{f.filename}
+                    <span className="truncate max-w-[120px] group-hover:max-w-none transition-all duration-150">
+                      {f.filename}
                       {f.type === 'pdf' && f.pages && (
                         <span className="ml-1 text-black/30">· {f.pages.length}p</span>
                       )}
                     </span>
                     <button
-                      onClick={() => setAttachedFiles((prev) => prev.filter((_, j) => j !== i))}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setAttachedFiles((prev) => prev.filter((_, j) => j !== i));
+                      }}
                       className="text-black/40 hover-gate:text-black ml-0.5"
+                      aria-label="Remove file"
                     >
                       <span className="material-symbols-outlined text-[14px]">close</span>
                     </button>
@@ -749,15 +1005,18 @@ export default function ChatPage() {
                   type="file"
                   onChange={handleFileSelect}
                   className="hidden"
-                  accept="image/*,.txt,.json,.md,.csv,.pdf"
+                  accept="image/*,.pdf,.docx,.pptx,.xlsx,.xls,.csv,.tsv,.txt,.json,.xml,.yaml,.yml,.md,.html,.css,.js,.jsx,.ts,.tsx,.py,.rb,.java,.c,.cpp,.cs,.go,.rs,.swift,.kt,.php,.sh,.bash,.sql,.scss,.less,.r,.svg,.webp,.gif,.bmp"
                   multiple
                 />
                 <button
                   onClick={handleAttachClick}
-                  className="absolute left-2 w-8 h-8 rounded-lg flex items-center justify-center text-black/50 hover:text-black active:scale-[0.97] transition-all duration-150 z-10"
+                  disabled={isUploading}
+                  className="absolute left-2 w-8 h-8 rounded-lg flex items-center justify-center text-black/50 hover:text-black disabled:text-black/20 active:scale-[0.97] transition-all duration-150 z-10"
                   aria-label="Attach file"
                 >
-                  <span className="material-symbols-outlined text-[18px]">add</span>
+                  <span className={`material-symbols-outlined text-[18px] ${isUploading ? 'animate-spin' : ''}`}>
+                    {isUploading ? 'progress_activity' : 'add'}
+                  </span>
                 </button>
                 <textarea
                   ref={textareaRef}
@@ -938,6 +1197,11 @@ export default function ChatPage() {
             </div>
           </div>
         </div>
+      )}
+
+      {/* ── File preview modal ──────────────────────────────────── */}
+      {previewFile && (
+        <FilePreviewModal file={previewFile} onClose={() => setPreviewFile(null)} />
       )}
 
       {/* ── Image lightbox ──────────────────────────────────────── */}
