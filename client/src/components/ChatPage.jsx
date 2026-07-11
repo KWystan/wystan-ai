@@ -348,6 +348,27 @@ function withTimeout(promise, ms = 15000) {
   ]);
 }
 
+/* ── Heuristic web-search detection ──────────────────────── */
+function needsWebSearch(text) {
+  /* Time-sensitive patterns that benefit from current information */
+  const patterns = [
+    /\b(news|headlines|breaking|latest|update|announce)\b/i,
+    /\b(today|tonight|yesterday|this\s+week|this\s+month|right\s+now)\b/i,
+    /\b(weather|forecast|temperature|rain|snow|storm)\b/i,
+    /\b(stock|price|market|NASDAQ|S&P|crypto|bitcoin|ethereum|share)\b/i,
+    /\b(sport|score|game|match|race|championship|tournament|winner|result)\b/i,
+    /\b(election|poll|president|prime\s+minister|congress|senate)\b/i,
+    /\b(release|launch|announce|unveil|reveal|debut)\b/i,
+    /\b(how\s+to|tutorial|guide|steps?\s+to)\b/i,
+    /\b(who\s+is|who\s+are|tell\s+me\s+about|what\s+is\s+the\s+latest)\b/i,
+    /\b(202[5-9]|2030)\b/, /* current/future years */
+    /\b(happen|occurred|event|incident|attack|disaster|war|conflict)\b/i,
+    /\b(compare|vs\.?|versus|difference\s+between)\b/i,
+    /\b(price|cost|salary|budget|funding|valuation)\b/i,
+  ];
+  return patterns.some((re) => re.test(text));
+}
+
 export default function ChatPage() {
   const [messages, setMessages] = useState([]);
   const [input, setInput] = useState('');
@@ -356,7 +377,6 @@ export default function ChatPage() {
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [selectedModel, setSelectedModel] = useState(MODELS[0].id);
   const [modelDropdownOpen, setModelDropdownOpen] = useState(false);
-  const [webSearchEnabled, setWebSearchEnabled] = useState(false);
   const [copiedIdx, setCopiedIdx] = useState(null);
   const [attachedFiles, setAttachedFiles] = useState([]);
   const [lightboxUrl, setLightboxUrl] = useState(null);
@@ -510,9 +530,9 @@ export default function ChatPage() {
       : selectedModel;
     const isMultimodal = MODELS.find((m) => m.id === effectiveModel)?.multimodal;
 
-    /* ── Web search ─────────────────────────────────────── */
+    /* ── Auto web search ────────────────────────────────── */
     let searchMsg = null;
-    if (webSearchEnabled && text) {
+    if (text && needsWebSearch(text)) {
       try {
         const searchRes = await fetch('/api/search', {
           method: 'POST',
@@ -643,7 +663,7 @@ export default function ChatPage() {
       setIsLoading(false);
       abortRef.current = null;
     }
-  }, [input, isLoading, messages, selectedModel, attachedFiles, user, currentConversationId, webSearchEnabled]);
+  }, [input, isLoading, messages, selectedModel, attachedFiles, user, currentConversationId]);
 
   /* ── Keyboard: Enter to send, Shift+Enter newline ─────────── */
   const handleKeyDown = (e) => {
@@ -851,22 +871,6 @@ export default function ChatPage() {
                 </>
               )}
             </div>
-
-            {/* ── Web search toggle ──────────────────────────────── */}
-            <button
-              onClick={() => setWebSearchEnabled((p) => !p)}
-              className={`flex items-center gap-1 text-sm active:scale-[0.97] transition-all duration-150 ${
-                webSearchEnabled
-                  ? 'text-black/70'
-                  : 'text-black/35 hover-gate:text-black/55'
-              }`}
-              aria-label="Toggle web search"
-            >
-              <span className="material-symbols-outlined text-[16px]">travel_explore</span>
-              <span className={`hidden xs:inline ${webSearchEnabled ? 'font-medium' : ''}`}>
-                Search
-              </span>
-            </button>
 
             <div className="ml-auto flex items-center gap-3">
               {/* ── Save conversation ─────────────────────────────── */}
