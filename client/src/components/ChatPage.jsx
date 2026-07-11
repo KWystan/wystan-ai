@@ -356,6 +356,7 @@ export default function ChatPage() {
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [selectedModel, setSelectedModel] = useState(MODELS[0].id);
   const [modelDropdownOpen, setModelDropdownOpen] = useState(false);
+  const [webSearchEnabled, setWebSearchEnabled] = useState(false);
   const [copiedIdx, setCopiedIdx] = useState(null);
   const [attachedFiles, setAttachedFiles] = useState([]);
   const [lightboxUrl, setLightboxUrl] = useState(null);
@@ -508,8 +509,36 @@ export default function ChatPage() {
       ? MODELS.find((m) => m.multimodal)?.id || selectedModel
       : selectedModel;
     const isMultimodal = MODELS.find((m) => m.id === effectiveModel)?.multimodal;
+
+    /* ── Web search ─────────────────────────────────────── */
+    let searchMsg = null;
+    if (webSearchEnabled && text) {
+      try {
+        const searchRes = await fetch('/api/search', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ query: text }),
+        });
+        if (searchRes.ok) {
+          const searchData = await searchRes.json();
+          if (searchData.results?.length > 0) {
+            const lines = searchData.results.map((r, i) =>
+              `${i + 1}. ${r.title}\n   ${(r.content || '').slice(0, 500)}`
+            );
+            const summary = searchData.answer ? `\n\nSummary: ${searchData.answer}` : '';
+            searchMsg = {
+              role: 'user',
+              content: `[Web search results for "${text}"]\n${lines.join('\n')}${summary}`,
+            };
+          }
+        }
+      } catch (err) {
+        console.error('Web search failed:', err);
+      }
+    }
+
     const userMsg = { role: 'user', content: buildUserContent(text, isMultimodal, attachedFiles) };
-    const updated = [...messages, userMsg];
+    const updated = searchMsg ? [...messages, searchMsg, userMsg] : [...messages, userMsg];
     setMessages(updated);
     setInput('');
     setIsLoading(true);
@@ -614,7 +643,7 @@ export default function ChatPage() {
       setIsLoading(false);
       abortRef.current = null;
     }
-  }, [input, isLoading, messages, selectedModel, attachedFiles, user, currentConversationId]);
+  }, [input, isLoading, messages, selectedModel, attachedFiles, user, currentConversationId, webSearchEnabled]);
 
   /* ── Keyboard: Enter to send, Shift+Enter newline ─────────── */
   const handleKeyDown = (e) => {
@@ -822,6 +851,23 @@ export default function ChatPage() {
                 </>
               )}
             </div>
+
+            {/* ── Web search toggle ──────────────────────────────── */}
+            <button
+              onClick={() => setWebSearchEnabled((p) => !p)}
+              className={`flex items-center gap-1 text-sm active:scale-[0.97] transition-all duration-150 ${
+                webSearchEnabled
+                  ? 'text-black/70'
+                  : 'text-black/35 hover-gate:text-black/55'
+              }`}
+              aria-label="Toggle web search"
+            >
+              <span className="material-symbols-outlined text-[16px]">travel_explore</span>
+              <span className={`hidden xs:inline ${webSearchEnabled ? 'font-medium' : ''}`}>
+                Search
+              </span>
+            </button>
+
             <div className="ml-auto flex items-center gap-3">
               {/* ── Save conversation ─────────────────────────────── */}
               {messages.length > 0 && (
@@ -882,6 +928,18 @@ export default function ChatPage() {
                       style={{ animation: `fade-up 0.2s var(--ease-out-expo) both` }}
                     >
                       {msg.role === 'user' ? (
+                        /* ── Search results block ──────────────────── */
+                        typeof msg.content === 'string' && msg.content.startsWith('[Web search results for') ? (
+                          <div className="max-w-[80%]">
+                            <div className="bg-blue-50 border border-blue-100 rounded-2xl rounded-br-md px-3.5 py-2.5 text-[11px] leading-relaxed whitespace-pre-wrap">
+                              <div className="flex items-center gap-1.5 mb-1.5 text-black/40">
+                                <span className="material-symbols-outlined text-[13px]">travel_explore</span>
+                                <span className="font-medium text-[10px] uppercase tracking-wider">Web Search</span>
+                              </div>
+                              <div className="text-black/65">{msg.content.replace(/^\[Web search results for ".+"\]\n?/, '')}</div>
+                            </div>
+                          </div>
+                        ) : (
                         /* ── User message ────────────────────────────── */
                         <div className="max-w-[80%] relative group">
                           {/* Images sit on the natural background, above the dark bubble */}
@@ -912,7 +970,7 @@ export default function ChatPage() {
                             </button>
                           )}
                         </div>
-                      ) : (
+                      )) : (
                         /* ── Assistant message ───────────────────────── */
                         <div className="max-w-[80%] flex gap-2.5">
                           <div className="w-7 h-7 rounded-lg border border-black/10 flex items-center justify-center flex-shrink-0 mt-0.5">
