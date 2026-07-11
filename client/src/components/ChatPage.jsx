@@ -1,12 +1,20 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
-import { useParams } from 'react-router-dom';
+import { useParams, useNavigate } from 'react-router-dom';
 import Markdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import { supabase } from '../lib/supabase.js';
 import Sidebar from './Sidebar.jsx';
 
+// Import animated SVG logo for welcome screen
+const aiSparkSvg = new URL('../assets/AI Spark_ Interactive Assistant.svg', import.meta.url).href;
+
+/* ── Large paste threshold — pastes >= this length are auto-converted
+ *    to a .txt file and attached instead of rendered inline. ────── */
+const LARGE_TEXT_THRESHOLD = 15000;
+
 const MODELS = [
   { id: 'minimaxai/minimax-m3', name: 'MiniMax M3', multimodal: true },
+  { id: 'deepseek-v4-flash-free', name: 'DeepSeek V4 Flash', multimodal: false },
   { id: 'mimo-v2.5-free', name: 'MiMo-V2.5', multimodal: false },
   { id: 'nemotron-3-ultra-free', name: 'Nemotron 3 Ultra', multimodal: false },
   { id: 'north-mini-code-free', name: 'North Mini Code', multimodal: false },
@@ -291,7 +299,37 @@ function renderMessageText(text) {
  *  message carries OpenAI-style content blocks: typed text + a real
  *  `image_url` block (the base64 from /api/upload). Text-only models keep
  *  the legacy tagged-string form (inlined below). */
+/* Build user-visible message content — file content is replaced with a
+   terse reference so the bubble stays clean. Images get their own array
+   part (displayed as thumbnails above the bubble); text files appear as a
+   card-style reference that the system can read from the full payload. */
 function buildUserContent(text, isMultimodal, attachedFiles) {
+  if (!attachedFiles || attachedFiles.length === 0) return text;
+
+  if (isMultimodal) {
+    const content = [{ type: 'text', text }];
+    for (const file of attachedFiles) {
+      if (file.group === 'image') {
+        content.push({ type: 'image_url', image_url: { url: file.data } });
+      } else {
+        content[0].text += `\n\n[📎 ${file.filename}]`;
+      }
+    }
+    return content;
+  }
+
+  // Text-only model: flat string with references
+  const parts = attachedFiles.map((f) => {
+    if (f.group === 'image') return `[Attached image: ${f.filename}]`;
+    return `[📎 ${f.filename}]`;
+  });
+  return parts.join('\n') + '\n' + text;
+}
+
+/* Build the full API payload content — same structure but includes the
+   actual file text so the AI can read it. Used only at send-time, not
+   stored in the rendered message. */
+function buildApiContent(text, isMultimodal, attachedFiles) {
   if (!attachedFiles || attachedFiles.length === 0) return text;
 
   if (isMultimodal) {
@@ -303,20 +341,20 @@ function buildUserContent(text, isMultimodal, attachedFiles) {
         const language = file.language ? ` (${file.language})` : '';
         content[0].text += `\n\n--- ${file.filename}${language} ---\n${file.content}`;
       } else {
-        content[0].text += `\n\n[Attached: ${file.filename}]`;
+        content[0].text += `\n\n[📎 ${file.filename}]`;
       }
     }
     return content;
   }
 
-  // Text-only model: build a single tagged string
+  // Text-only model: flat string with full content
   const parts = attachedFiles.map((f) => {
     if (f.group === 'image') return `[Attached image: ${f.filename}]`;
     if (f.content) {
       const lang = f.language ? ` (${f.language})` : '';
       return `[${f.filename}${lang}]\n${f.content}`;
     }
-    return `[Attached: ${f.filename}]`;
+    return `[📎 ${f.filename}]`;
   });
   return parts.join('\n') + '\n' + text;
 }
@@ -348,47 +386,6 @@ function withTimeout(promise, ms = 15000) {
   ]);
 }
 
-/* ── LLM decides if query needs web search ─────────────────── */
-async function needsWebSearch(text) {
-  try {
-    const res = await fetch('/api/chat-full', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        messages: [
-          { role: 'system', content: 'You decide if answering the user requires current web information (news, prices, weather, recent events, data not in your training). Reply with exactly YES or NO.' },
-          { role: 'user', content: text },
-        ],
-        model: 'mimo-v2.5-free',
-      }),
-    });
-    if (!res.ok) return false;
-
-    const reader = res.body.getReader();
-    const decoder = new TextDecoder();
-    let result = '', buffer = '';
-    while (true) {
-      const { done, value } = await reader.read();
-      if (done) break;
-      buffer += decoder.decode(value, { stream: true });
-      for (const line of buffer.split('\n').slice(0, -1)) {
-        const t = line.trim();
-        if (!t.startsWith('data:')) continue;
-        const data = t.slice(5).trim();
-        if (data === '[DONE]') continue;
-        try {
-          const p = JSON.parse(data);
-          result += p.choices?.[0]?.delta?.content || p.content || '';
-        } catch {}
-      }
-      buffer = buffer.split('\n').pop();
-    }
-    return result.trim().toUpperCase().startsWith('YES');
-  } catch {
-    return false;
-  }
-}
-
 export default function ChatPage() {
   const [messages, setMessages] = useState([]);
   const [input, setInput] = useState('');
@@ -401,7 +398,11 @@ export default function ChatPage() {
   const [attachedFiles, setAttachedFiles] = useState([]);
   const [lightboxUrl, setLightboxUrl] = useState(null);
   const [previewFile, setPreviewFile] = useState(null);
+  const [modeMenuOpen, setModeMenuOpen] = useState(false);
+  const [activeMode, setActiveMode] = useState(null); // 'search' | 'generate' | null
+  const [isDragging, setIsDragging] = useState(false);
   const [isUploading, setIsUploading] = useState(false);
+  const [pasteConverting, setPasteConverting] = useState(false);
   const [user, setUser] = useState(null);
   const [currentConversationId, setCurrentConversationId] = useState(null);
   const [authOpen, setAuthOpen] = useState(false);
@@ -416,8 +417,11 @@ export default function ChatPage() {
   const textareaRef = useRef(null);
   const abortRef = useRef(null);
   const fileInputRef = useRef(null);
+  const dragCounterRef = useRef(0);
+  const pasteLockRef = useRef(false);
   const visibleConversationRef = useRef(null); // which conversation the user is viewing
   const { conversationId: urlConversationId } = useParams();
+  const navigate = useNavigate();
   /* ── Load conversation from URL param ──────────────────── */
   useEffect(() => {
     if (!urlConversationId) return;
@@ -475,7 +479,7 @@ export default function ChatPage() {
     const el = textareaRef.current;
     if (!el) return;
     el.style.height = 'auto';
-    el.style.height = Math.min(el.scrollHeight, 200) + 'px';
+    el.style.height = Math.min(el.scrollHeight, 300) + 'px';
   }, [input]);
 
   /* ── Close lightbox on Escape ──────────────────────────── */
@@ -550,8 +554,21 @@ export default function ChatPage() {
       : selectedModel;
     const isMultimodal = MODELS.find((m) => m.id === effectiveModel)?.multimodal;
 
-    /* ── Show user message immediately ──────────────────── */
-    const userMsg = { role: 'user', content: buildUserContent(text, isMultimodal, attachedFiles) };
+    /* ── Mode dispatch: generate, search, or normal ────── */
+    if (activeMode === 'generate') {
+      setActiveMode(null);
+      navigate('/generate', { state: text ? { initialPrompt: text } : undefined });
+      return;
+    }
+
+    let searchText = null;
+    const modeText = text;
+    if (activeMode === 'search') {
+      searchText = text;
+      setActiveMode(null);
+    }
+
+    const userMsg = { role: 'user', content: buildUserContent(modeText, isMultimodal, attachedFiles) };
     let updated = [...messages, userMsg];
     setMessages(updated);
     setInput('');
@@ -559,13 +576,13 @@ export default function ChatPage() {
     setError(null);
     setAttachedFiles([]);
 
-    /* ── Auto web search (background, inserts before message) ── */
-    if (text && await needsWebSearch(text)) {
+    /* ── Web search (if /search mode) ─────────────────────── */
+    if (searchText) {
       try {
         const searchRes = await fetch('/api/search', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ query: text }),
+          body: JSON.stringify({ query: searchText }),
         });
         if (searchRes.ok) {
           const searchData = await searchRes.json();
@@ -576,7 +593,7 @@ export default function ChatPage() {
             const summary = searchData.answer ? `\n\nSummary: ${searchData.answer}` : '';
             const searchMsg = {
               role: 'user',
-              content: `[Web search results for "${text}"]\n${lines.join('\n')}${summary}`,
+              content: `[Web search results for "${searchText}"]\n${lines.join('\n')}${summary}`,
             };
             updated = [...updated.slice(0, -1), searchMsg, userMsg];
             setMessages(updated);
@@ -685,7 +702,7 @@ export default function ChatPage() {
       setIsLoading(false);
       abortRef.current = null;
     }
-  }, [input, isLoading, messages, selectedModel, attachedFiles, user, currentConversationId]);
+  }, [input, isLoading, messages, selectedModel, attachedFiles, user, currentConversationId, activeMode, navigate]);
 
   /* ── Keyboard: Enter to send, Shift+Enter newline ─────────── */
   const handleKeyDown = (e) => {
@@ -817,8 +834,106 @@ export default function ChatPage() {
     setIsUploading(false);
   };
 
-  const handleAttachClick = () => {
-    fileInputRef.current?.click();
+  const handleOpenModeMenu = () => {
+    setModeMenuOpen((p) => !p);
+  };
+
+  /* ── Large paste → file attachment ───────────────────────── */
+  const handlePaste = useCallback(async (e) => {
+    if (pasteLockRef.current) return;
+    const pastedText = e.clipboardData.getData('text/plain');
+    if (!pastedText || pastedText.length < LARGE_TEXT_THRESHOLD) return;
+
+    e.preventDefault();
+    pasteLockRef.current = true;
+    setPasteConverting(true);
+
+    const filename = `pasted-text-${new Date().toISOString().slice(0, 10)}.txt`;
+    const blob = new Blob([pastedText], { type: 'text/plain' });
+    const file = new File([blob], filename, { type: 'text/plain' });
+    const formData = new FormData();
+    formData.append('file', file);
+
+    try {
+      const res = await fetch('/api/upload', { method: 'POST', body: formData });
+      if (!res.ok) throw new Error(`Upload failed (${res.status})`);
+      const data = await res.json();
+      setAttachedFiles((prev) => [...prev, data]);
+    } catch (err) {
+      // Upload failed — insert the text inline so it's not lost
+      setInput((prev) => prev + pastedText);
+      setError(`Paste upload failed — text inserted inline instead.`);
+    } finally {
+      pasteLockRef.current = false;
+      setPasteConverting(false);
+    }
+  }, []);
+
+  /* ── Drag & drop ────────────────────────────────────────── */
+  const handleDragEnter = (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    dragCounterRef.current++;
+    if (e.dataTransfer.items && e.dataTransfer.items.length > 0) {
+      setIsDragging(true);
+    }
+  };
+
+  const handleDragOver = (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+  };
+
+  const handleDragLeave = (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    dragCounterRef.current--;
+    if (dragCounterRef.current === 0) {
+      setIsDragging(false);
+    }
+  };
+
+  const handleDrop = async (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setIsDragging(false);
+    dragCounterRef.current = 0;
+
+    const files = Array.from(e.dataTransfer.files || []);
+    if (files.length === 0) return;
+
+    setIsUploading(true);
+    setError(null);
+    const results = [];
+
+    for (const file of files) {
+      try {
+        const formData = new FormData();
+        formData.append('file', file);
+
+        const res = await fetch('/api/upload', {
+          method: 'POST',
+          body: formData,
+        });
+
+        const data = await res.json().catch(() => ({}));
+
+        if (!res.ok) {
+          throw new Error(data.error || `Upload failed (${res.status})`);
+        }
+        results.push(data);
+      } catch (err) {
+        setError(err.message.includes('413') || err.message.includes('too large')
+          ? `"${file.name}" is too large. Maximum file size is 10 MB.`
+          : `Failed to upload "${file.name}": ${err.message}`);
+      }
+    }
+
+    if (results.length > 0) {
+      setAttachedFiles((prev) => [...prev, ...results]);
+    }
+
+    setIsUploading(false);
   };
 
   return (
@@ -845,7 +960,23 @@ export default function ChatPage() {
       )}
 
       {/* ── Main area ───────────────────────────────────────────── */}
-      <div className="flex-1 flex flex-col min-w-0 h-full">
+      <div
+        className="flex-1 flex flex-col min-w-0 h-full relative"
+        onDragEnter={handleDragEnter}
+        onDragOver={handleDragOver}
+        onDragLeave={handleDragLeave}
+        onDrop={handleDrop}
+      >
+        {/* ── Drop overlay ──────────────────────────────────────── */}
+        {isDragging && (
+          <div className="absolute inset-0 z-[100] bg-black/[0.04] flex items-center justify-center pointer-events-none">
+            <div className="flex flex-col items-center gap-2 p-6 rounded-2xl bg-white/80 backdrop-blur-md border border-dashed border-black/20 shadow-sm">
+              <span className="material-symbols-outlined text-2xl text-black/30">add_photo_alternate</span>
+              <span className="text-sm text-black/50">Drop files to attach</span>
+            </div>
+          </div>
+        )}
+
         {/* ── Top bar ──────────────────────────────────────────── */}
         <header className="flex-shrink-0 bg-white/90 backdrop-blur-md">
           <div className="px-4 h-12 flex items-center gap-3">
@@ -919,8 +1050,8 @@ export default function ChatPage() {
                 className="flex-1 flex flex-col items-center justify-center min-h-[70vh] text-center"
                 style={{ animation: 'fade-up 0.4s var(--ease-out-expo) both' }}
               >
-                <div className="w-14 h-14 rounded-2xl border border-black/10 flex items-center justify-center mb-5">
-                  <span className="material-symbols-outlined text-2xl text-black/30">auto_awesome</span>
+                <div className="w-28 h-28 rounded-2xl mb-5 overflow-hidden">
+                  <img src={aiSparkSvg} alt="AI Spark" className="w-full h-full object-cover" />
                 </div>
                 <h2 className="font-magazine text-xl font-semibold text-black mb-1.5">
                   How can I help you?
@@ -996,21 +1127,15 @@ export default function ChatPage() {
                             </button>
                           )}
                         </div>
-                      )) : (
+                      )) : msg.content ? (
                         /* ── Assistant message ───────────────────────── */
                         <div className="max-w-[80%] flex gap-2.5">
-                          <div className="w-7 h-7 rounded-lg border border-black/10 flex items-center justify-center flex-shrink-0 mt-0.5">
-                            <span className="material-symbols-outlined text-[14px] text-black/30">auto_awesome</span>
+                          <div className="w-7 h-7 rounded-lg flex-shrink-0 mt-0.5 overflow-hidden">
+                            <img src={aiSparkSvg} alt="" className="w-full h-full object-cover" />
                           </div>
                           <div className="relative group">
                             <div className="border border-black/8 rounded-2xl rounded-bl-md px-4 pb-8 pt-3 text-sm leading-relaxed text-black/70">
-                              {msg.content ? renderMessageText(msg.content) : (
-                                <span className="inline-flex gap-1 py-0.5">
-                                  <span className="animate-blink size-1.5 rounded-full bg-black/25" />
-                                  <span className="animate-blink size-1.5 rounded-full bg-black/25" style={{ animationDelay: '0.2s' }} />
-                                  <span className="animate-blink size-1.5 rounded-full bg-black/25" style={{ animationDelay: '0.4s' }} />
-                                </span>
-                              )}
+                              {renderMessageText(msg.content)}
                             </div>
                             {/* Copy — bottom-right inside bubble, hover only, finished only */}
                             {msg.content && !isStreaming && (
@@ -1026,11 +1151,21 @@ export default function ChatPage() {
                             )}
                           </div>
                         </div>
-                      )}
+                      ) : null}
                     </div>
                   );
                 })}
                 <div ref={messagesEndRef} />
+                {isLoading && (
+                  <div className="flex items-center gap-2.5 px-4 py-2 mt-2">
+                    <div className="flex gap-1">
+                      <span className="w-1.5 h-1.5 rounded-full bg-black/30 animate-bounce" style={{ animationDelay: '0s' }} />
+                      <span className="w-1.5 h-1.5 rounded-full bg-black/30 animate-bounce" style={{ animationDelay: '0.15s' }} />
+                      <span className="w-1.5 h-1.5 rounded-full bg-black/30 animate-bounce" style={{ animationDelay: '0.3s' }} />
+                    </div>
+                    <span className="text-xs text-black/40">Thinking</span>
+                  </div>
+                )}
               </div>
             )}
           </div>
@@ -1092,26 +1227,82 @@ export default function ChatPage() {
                   multiple
                 />
                 <button
-                  onClick={handleAttachClick}
+                  onClick={handleOpenModeMenu}
                   disabled={isUploading}
                   className="absolute left-2 w-8 h-8 rounded-lg flex items-center justify-center text-black/50 hover:text-black disabled:text-black/20 active:scale-[0.97] transition-all duration-150 z-10"
-                  aria-label="Attach file"
+                  aria-label="Add mode"
                 >
                   <span className={`material-symbols-outlined text-[18px] ${isUploading ? 'animate-spin' : ''}`}>
                     {isUploading ? 'progress_activity' : 'add'}
                   </span>
                 </button>
+                {modeMenuOpen && (
+                  <>
+                    <div className="fixed inset-0 z-40" onClick={() => setModeMenuOpen(false)} />
+                    <div
+                      className="absolute bottom-full left-2 mb-1.5 w-44 bg-white border border-black/10 rounded-xl shadow-lg overflow-hidden z-50"
+                      style={{ animation: `scale-in 0.15s var(--ease-out-expo) both`, transformOrigin: 'bottom left' }}
+                    >
+                      <button
+                        onClick={() => { setModeMenuOpen(false); fileInputRef.current?.click(); }}
+                        className="w-full text-left px-3.5 py-1.5 text-xs text-black/55 hover-gate:text-black hover-gate:bg-black/[0.03] transition-colors duration-150 flex items-center gap-2.5"
+                      >
+                        <span className="material-symbols-outlined text-[16px]">attach_file</span>
+                        Attach file
+                      </button>
+                      <button
+                        onClick={() => { setModeMenuOpen(false); setActiveMode('generate'); textareaRef.current?.focus(); }}
+                        className="w-full text-left px-3.5 py-1.5 text-xs text-black/55 hover-gate:text-black hover-gate:bg-black/[0.03] transition-colors duration-150 flex items-center gap-2.5"
+                      >
+                        <span className="material-symbols-outlined text-[16px]">image</span>
+                        Generate
+                      </button>
+                      <button
+                        onClick={() => { setModeMenuOpen(false); setActiveMode('search'); textareaRef.current?.focus(); }}
+                        className="w-full text-left px-3.5 py-1.5 text-xs text-black/55 hover-gate:text-black hover-gate:bg-black/[0.03] transition-colors duration-150 flex items-center gap-2.5"
+                      >
+                        <span className="material-symbols-outlined text-[16px]">travel_explore</span>
+                        Search
+                      </button>
+                    </div>
+                  </>
+                )}
+                {activeMode && (
+                  <button
+                    onClick={() => setActiveMode(null)}
+                    className="absolute left-10 text-blue-500 text-sm font-medium z-10 flex items-center gap-1 cursor-pointer"
+                  >
+                    <span className="pointer-events-none">/{activeMode === 'search' ? 'search' : 'generate'}</span>
+                    <span className="material-symbols-outlined text-[14px] text-blue-400 hover:text-blue-600 transition-colors duration-150">close</span>
+                  </button>
+                )}
                 <textarea
                   ref={textareaRef}
                   value={input}
                   onChange={(e) => setInput(e.target.value)}
                   onKeyDown={handleKeyDown}
+                  onPaste={handlePaste}
                   placeholder="Type a message..."
-                  maxLength={4000}
+                  maxLength={10000}
                   rows={1}
                   disabled={isLoading}
-                  className="w-full bg-white text-black text-sm rounded-xl pl-12 pr-4 py-2.5 resize-none overflow-hidden outline-none placeholder:text-black/30 border border-black/10 focus:border-black/25 transition-all duration-150 disabled:opacity-50 leading-relaxed"
+                  className={`w-full bg-white text-black text-sm rounded-xl px-4 py-2.5 resize-none overflow-y-auto hide-scrollbar outline-none placeholder:text-black/30 border border-black/10 focus:border-black/25 transition-all duration-150 disabled:opacity-50 leading-relaxed ${
+                    activeMode ? 'pl-28' : 'pl-12'
+                  }`}
                 />
+                {input.length > 8000 && (
+                  <div className={`absolute bottom-1 right-3 text-[10px] font-medium pointer-events-none ${
+                    input.length > 9500 ? 'text-red-500' : 'text-amber-500'
+                  }`}>
+                    {input.length.toLocaleString()}/10,000
+                  </div>
+                )}
+                {pasteConverting && (
+                  <div className="absolute bottom-1 left-3 flex items-center gap-1.5 text-[10px] text-black/35 pointer-events-none">
+                    <span className="material-symbols-outlined text-[12px] animate-spin">progress_activity</span>
+                    Converting paste to file…
+                  </div>
+                )}
               </div>
               <button
                 onClick={() => handleSend()}

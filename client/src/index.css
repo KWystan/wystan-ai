@@ -122,6 +122,15 @@ body::after {
   transform: translateY(0);
 }
 
+/* ── Hide scrollbar but keep scrollable ─────────────────── */
+.hide-scrollbar {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+.hide-scrollbar::-webkit-scrollbar {
+  display: none;
+}
+
 /* ── prefers-reduced-motion ─────────────────────────────── */
 @media (prefers-reduced-motion: reduce) {
   *,

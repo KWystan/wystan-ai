@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import { Link, useNavigate, useLocation } from 'react-router-dom';
 import { supabase } from '../lib/supabase.js';
 import Sidebar from './Sidebar.jsx';
 import logo from '../assets/logo.png';
@@ -71,6 +71,7 @@ async function analyzeInspirationImage(file) {
 
 export default function GeneratePage() {
   const navigate = useNavigate();
+  const location = useLocation();
   const fileInputRef = useRef(null);
 
   const [prompt, setPrompt] = useState('');
@@ -86,6 +87,7 @@ export default function GeneratePage() {
   const [error, setError] = useState(null);
   const [user, setUser] = useState(null);
   const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [isDragOver, setIsDragOver] = useState(false);
 
   /* ── Auth state ─────────────────────────────────────────── */
   useEffect(() => {
@@ -98,6 +100,16 @@ export default function GeneratePage() {
     });
 
     return () => subscription.unsubscribe();
+  }, []);
+
+  /* ── Accept initial prompt from ChatPage navigation ─────── */
+  useEffect(() => {
+    const state = location.state;
+    if (state?.initialPrompt) {
+      setPrompt(state.initialPrompt);
+      // Clear the state so it doesn't re-trigger on re-render
+      window.history.replaceState({}, document.title);
+    }
   }, []);
 
   /* ── Handle inspiration image upload ────────────────────── */
@@ -126,6 +138,41 @@ export default function GeneratePage() {
     if (inspirationPreview) URL.revokeObjectURL(inspirationPreview);
     setInspirationFile(null);
     setInspirationPreview(null);
+  };
+
+  /* ── Drag & drop inspiration ────────────────────────────── */
+  const handleInspirationDragOver = (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setIsDragOver(true);
+  };
+
+  const handleInspirationDragLeave = (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setIsDragOver(false);
+  };
+
+  const handleInspirationDrop = (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setIsDragOver(false);
+
+    const file = e.dataTransfer.files?.[0];
+    if (!file) return;
+
+    if (!file.type.startsWith('image/')) {
+      setError('Please drop an image file (PNG, JPG, etc.)');
+      return;
+    }
+    if (file.size > 10 * 1024 * 1024) {
+      setError('Image must be under 10 MB');
+      return;
+    }
+
+    setInspirationFile(file);
+    setInspirationPreview(URL.createObjectURL(file));
+    setError(null);
   };
 
   /* ── Generate ───────────────────────────────────────────── */
@@ -347,10 +394,17 @@ export default function GeneratePage() {
                 ) : (
                   <div
                     onClick={() => fileInputRef.current?.click()}
-                    className="flex items-center gap-3 px-4 py-3 rounded-xl border border-dashed border-black/15 bg-black/[0.02] cursor-pointer hover:bg-black/[0.04] hover:border-black/25 transition-all duration-150"
+                    onDragOver={handleInspirationDragOver}
+                    onDragLeave={handleInspirationDragLeave}
+                    onDrop={handleInspirationDrop}
+                    className={`flex items-center gap-3 px-4 py-3 rounded-xl border border-dashed cursor-pointer transition-all duration-150 ${
+                      isDragOver
+                        ? 'border-blue-400 bg-blue-50/50'
+                        : 'border-black/15 bg-black/[0.02] hover:bg-black/[0.04] hover:border-black/25'
+                    }`}
                   >
                     <span className="material-symbols-outlined text-[18px] text-black/25">image</span>
-                    <span className="text-xs text-black/35">Click to upload a reference image for style inspiration</span>
+                    <span className="text-xs text-black/35">Click or drag an image here for style inspiration</span>
                   </div>
                 )}
                 <input

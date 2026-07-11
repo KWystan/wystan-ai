@@ -266,7 +266,12 @@ app.post('/api/chat', async (req, res) => {
     if (!nvidiaRes.ok) {
       const errText = await nvidiaRes.text();
       console.error('NVIDIA API error:', nvidiaRes.status, errText);
-      return res.status(502).json({ error: 'AI service returned an error. Please try again.' });
+      let details = 'AI service returned an error.';
+      try {
+        const parsed = JSON.parse(errText);
+        details = parsed.error?.message || parsed.message || parsed.error || details;
+      } catch { details = errText.slice(0, 200) || details; }
+      return res.status(502).json({ error: details });
     }
 
     const data = await nvidiaRes.json();
@@ -394,7 +399,12 @@ app.post('/api/chat-full', async (req, res) => {
     if (!apiRes.ok) {
       const errText = await apiRes.text();
       console.error(`${upstream.label} API error:`, apiRes.status, errText);
-      return res.status(502).json({ error: 'AI service returned an error. Please try again.' });
+      let details = 'AI service returned an error.';
+      try {
+        const parsed = JSON.parse(errText);
+        details = parsed.error?.message || parsed.message || parsed.error || details;
+      } catch { details = errText.slice(0, 200) || details; }
+      return res.status(502).json({ error: details });
     }
 
     /* ── Stream SSE back to the client ───────────────────────── */
