@@ -381,6 +381,8 @@ export default function ChatPage() {
   useEffect(() => {
     if (!urlConversationId) return;
 
+    let cancelled = false;
+
     setCurrentConversationId(urlConversationId);
     visibleConversationRef.current = urlConversationId;
     setMessages([]);
@@ -395,14 +397,18 @@ export default function ChatPage() {
       .eq('conversation_id', urlConversationId)
       .order('created_at', { ascending: true })
       .then(({ data, error }) => {
+        if (cancelled) return;
         if (!error && data && data.length > 0) {
           setMessages(data);
         }
       })
       .catch((err) => {
+        if (cancelled) return;
         console.error('Failed to load messages:', err);
         setError('Failed to load messages: ' + err.message);
       });
+
+    return () => { cancelled = true; };
   }, [urlConversationId]);
 
   /* ── Accept initial text from navigation state ────────── */

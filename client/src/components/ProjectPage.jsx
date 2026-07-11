@@ -11,6 +11,7 @@ export default function ProjectPage() {
   const [input, setInput] = useState('');
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+  const [isSending, setIsSending] = useState(false);
 
   const textareaRef = useRef(null);
 
@@ -64,7 +65,8 @@ export default function ProjectPage() {
   /* ── Handle send ──────────────────────────────────────── */
   const handleSend = useCallback(async (overrideText) => {
     const text = (overrideText || input).trim();
-    if (!text) return;
+    if (!text || isSending) return;
+    setIsSending(true);
 
     /* Check if user is logged in */
     const { data: { session } } = await supabase.auth.getSession();
@@ -85,12 +87,16 @@ export default function ProjectPage() {
         }
       } catch (err) {
         console.error('Failed to create conversation:', err);
+        setError('Failed to start conversation. Please try again.');
+      } finally {
+        setIsSending(false);
       }
     } else {
       /* Logged out: navigate to chat */
+      setIsSending(false);
       navigate('/chat', { state: { initialText: text } });
     }
-  }, [input, id, navigate]);
+  }, [input, id, navigate, isSending]);
 
   /* ── Keyboard: Enter to send, Shift+Enter newline ─────── */
   const handleKeyDown = (e) => {
@@ -109,7 +115,7 @@ export default function ProjectPage() {
           <div className="px-4 h-12 flex items-center gap-3">
             <Link
               to="/chat"
-              className="w-8 h-8 rounded-lg border border-black/12 flex items-center justify-center text-black/50 hover-gate:border-black/35 hover-gate:text-black active:scale-[0.97] transition-all duration-150"
+              className="w-8 h-8 rounded-lg border border-black/12 flex items-center justify-center text-black/50 hover-gate:border-black/35 hover-gate:text-black active:scale-[0.97] transition-all duration-150 [backface-visibility:hidden]"
               aria-label="Back to chat"
             >
               <span className="material-symbols-outlined text-[18px]">arrow_back</span>
@@ -188,7 +194,7 @@ export default function ProjectPage() {
                         <button
                           key={conv.id}
                           onClick={() => navigate(`/chat/${conv.id}`)}
-                          className="w-full text-left px-3.5 py-2.5 rounded-xl border border-black/8 text-sm text-black/60 hover-gate:border-black/20 hover-gate:text-black active:scale-[0.99] transition-all duration-150 flex items-center gap-3"
+                          className="w-full text-left px-3.5 py-2.5 rounded-xl border border-black/8 text-sm text-black/60 hover-gate:border-black/20 hover-gate:text-black active:scale-[0.99] transition-all duration-150 flex items-center gap-3 [backface-visibility:hidden]"
                         >
                           <span className="material-symbols-outlined text-[16px] text-black/25 flex-shrink-0">chat</span>
                           <span className="truncate">{conv.title}</span>
@@ -221,8 +227,8 @@ export default function ProjectPage() {
                 </div>
                 <button
                   onClick={() => handleSend()}
-                  disabled={!input.trim()}
-                  className="w-10 h-10 rounded-xl bg-black text-white flex items-center justify-center flex-shrink-0 active:scale-[0.92] transition-all duration-150 disabled:opacity-25 disabled:cursor-not-allowed hover:bg-black/85"
+                  disabled={!input.trim() || isSending}
+                  className="w-10 h-10 rounded-xl bg-black text-white flex items-center justify-center flex-shrink-0 active:scale-[0.92] transition-all duration-150 disabled:opacity-25 disabled:cursor-not-allowed hover:bg-black/85 [backface-visibility:hidden]"
                   aria-label="Send message"
                 >
                   <span className="material-symbols-outlined text-[18px]">arrow_upward</span>
