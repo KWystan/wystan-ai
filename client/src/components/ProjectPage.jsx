@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
 import { supabase } from '../lib/supabase.js';
+import Sidebar from './Sidebar.jsx';
 
 export default function ProjectPage() {
   const { id } = useParams();
@@ -12,8 +13,24 @@ export default function ProjectPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [isSending, setIsSending] = useState(false);
+  const [user, setUser] = useState(null);
+  const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [refreshKey, setRefreshKey] = useState(0);
 
   const textareaRef = useRef(null);
+
+  /* ── Auth state ─────────────────────────────────────────── */
+  useEffect(() => {
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      setUser(session?.user ?? null);
+    });
+
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+      setUser(session?.user ?? null);
+    });
+
+    return () => subscription.unsubscribe();
+  }, []);
 
   /* ── Fetch project + conversations on mount ────────────── */
   useEffect(() => {
@@ -70,15 +87,15 @@ export default function ProjectPage() {
 
     /* Check if user is logged in */
     const { data: { session } } = await supabase.auth.getSession();
-    const user = session?.user;
+    const u = session?.user;
 
-    if (user) {
+    if (u) {
       /* Logged in: create conversation in this project */
       const title = text.length > 45 ? text.slice(0, 45) + '…' : text;
       try {
         const { data, error } = await supabase
           .from('conversations')
-          .insert({ user_id: user.id, project_id: id, title })
+          .insert({ user_id: u.id, project_id: id, title })
           .select()
           .single();
 
@@ -106,13 +123,59 @@ export default function ProjectPage() {
     }
   };
 
+  /* ── Sidebar handlers ──────────────────────────────────── */
+  const handleClear = () => {
+    navigate('/chat');
+  };
+
+  const handleSelectConversation = (conversationId) => {
+    navigate(`/chat/${conversationId}`);
+  };
+
+  const handleSignOut = async () => {
+    await supabase.auth.signOut();
+  };
+
+  const handleOpenAuth = () => {
+    navigate('/chat');
+  };
+
   return (
     <div className="fixed inset-0 z-50 flex bg-white">
+      {/* ── Sidebar ────────────────────────────────────────────── */}
+      <Sidebar
+        user={user}
+        onNewChat={handleClear}
+        currentConversationId={null}
+        onSelectConversation={handleSelectConversation}
+        onSignOut={handleSignOut}
+        onOpenAuth={handleOpenAuth}
+        sidebarOpen={sidebarOpen}
+        onCloseSidebar={() => setSidebarOpen(false)}
+        refreshKey={refreshKey}
+      />
+
+      {/* ── Mobile overlay ──────────────────────────────────────── */}
+      {sidebarOpen && (
+        <div
+          className="fixed inset-0 z-30 bg-black/10 md:hidden"
+          onClick={() => setSidebarOpen(false)}
+        />
+      )}
+
       {/* ── Main area ─────────────────────────────────────────── */}
       <div className="flex-1 flex flex-col min-w-0 h-full">
         {/* ── Header bar ──────────────────────────────────────── */}
         <header className="flex-shrink-0 bg-white/90 backdrop-blur-md border-b border-black/8">
           <div className="px-4 h-12 flex items-center gap-3">
+            {/* Mobile sidebar toggle */}
+            <button
+              onClick={() => setSidebarOpen(true)}
+              className="md:hidden w-8 h-8 rounded-lg border border-black/12 flex items-center justify-center text-black/50 hover-gate:border-black/35 hover-gate:text-black active:scale-[0.97] transition-all duration-150 [backface-visibility:hidden]"
+              aria-label="Open sidebar"
+            >
+              <span className="material-symbols-outlined text-[18px]">menu</span>
+            </button>
             <Link
               to="/chat"
               className="w-8 h-8 rounded-lg border border-black/12 flex items-center justify-center text-black/50 hover-gate:border-black/35 hover-gate:text-black active:scale-[0.97] transition-all duration-150 [backface-visibility:hidden]"
