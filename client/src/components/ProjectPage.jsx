@@ -2,13 +2,6 @@ import { useState, useEffect, useCallback, useRef } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
 import { supabase } from '../lib/supabase.js';
 
-const SUGGESTIONS = [
-  'Explain quantum computing simply',
-  'Write a short poem about the ocean',
-  'Help me plan a weekend project',
-  'What are the best practices for REST APIs?',
-];
-
 export default function ProjectPage() {
   const { id } = useParams();
   const navigate = useNavigate();
@@ -44,7 +37,13 @@ export default function ProjectPage() {
         setConversations(convRes.data || []);
       } catch (err) {
         console.error('Failed to load project:', err);
-        if (!cancelled) setError(err.message);
+        if (!cancelled) {
+          if (err?.code === 'PGRST116') {
+            setProject(null);
+          } else {
+            setError(err.message);
+          }
+        }
       } finally {
         if (!cancelled) setLoading(false);
       }
