@@ -348,25 +348,45 @@ function withTimeout(promise, ms = 15000) {
   ]);
 }
 
-/* ── Heuristic web-search detection ──────────────────────── */
-function needsWebSearch(text) {
-  /* Time-sensitive patterns that benefit from current information */
-  const patterns = [
-    /\b(news|headlines|breaking|latest|update|announce)\b/i,
-    /\b(today|tonight|yesterday|this\s+week|this\s+month|right\s+now)\b/i,
-    /\b(weather|forecast|temperature|rain|snow|storm)\b/i,
-    /\b(stock|price|market|NASDAQ|S&P|crypto|bitcoin|ethereum|share)\b/i,
-    /\b(sport|score|game|match|race|championship|tournament|winner|result)\b/i,
-    /\b(election|poll|president|prime\s+minister|congress|senate)\b/i,
-    /\b(release|launch|announce|unveil|reveal|debut)\b/i,
-    /\b(how\s+to|tutorial|guide|steps?\s+to)\b/i,
-    /\b(who\s+is|who\s+are|tell\s+me\s+about|what\s+is\s+the\s+latest)\b/i,
-    /\b(202[5-9]|2030)\b/, /* current/future years */
-    /\b(happen|occurred|event|incident|attack|disaster|war|conflict)\b/i,
-    /\b(compare|vs\.?|versus|difference\s+between)\b/i,
-    /\b(price|cost|salary|budget|funding|valuation)\b/i,
-  ];
-  return patterns.some((re) => re.test(text));
+/* ── LLM decides if query needs web search ─────────────────── */
+async function needsWebSearch(text) {
+  try {
+    const res = await fetch('/api/chat-full', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        messages: [
+          { role: 'system', content: 'You decide if answering the user requires current web information (news, prices, weather, recent events, data not in your training). Reply with exactly YES or NO.' },
+          { role: 'user', content: text },
+        ],
+        model: 'mimo-v2.5-free',
+      }),
+    });
+    if (!res.ok) return false;
+
+    const reader = res.body.getReader();
+    const decoder = new TextDecoder();
+    let result = '', buffer = '';
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      buffer += decoder.decode(value, { stream: true });
+      for (const line of buffer.split('\n').slice(0, -1)) {
+        const t = line.trim();
+        if (!t.startsWith('data:')) continue;
+        const data = t.slice(5).trim();
+        if (data === '[DONE]') continue;
+        try {
+          const p = JSON.parse(data);
+          result += p.choices?.[0]?.delta?.content || p.content || '';
+        } catch {}
+      }
+      buffer = buffer.split('\n').pop();
+    }
+    return result.trim().toUpperCase().startsWith('YES');
+  } catch {
+    return false;
+  }
 }
 
 export default function ChatPage() {
@@ -532,7 +552,7 @@ export default function ChatPage() {
 
     /* ── Auto web search ────────────────────────────────── */
     let searchMsg = null;
-    if (text && needsWebSearch(text)) {
+    if (text && await needsWebSearch(text)) {
       try {
         const searchRes = await fetch('/api/search', {
           method: 'POST',
