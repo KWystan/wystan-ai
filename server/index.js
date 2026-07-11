@@ -4,6 +4,9 @@ const fs = require('fs');
 const path = require('path');
 const multer = require('multer');
 const { PDFParse } = require('pdf-parse');
+const mammoth = require('mammoth');
+const XLSX = require('xlsx');
+const AdmZip = require('adm-zip');
 require('dotenv').config();
 
 const app = express();
@@ -19,6 +22,87 @@ const upload = multer({
   limits: { fileSize: 10 * 1024 * 1024 }, // 10MB
 });
 
+// ── File type registry ──────────────────────────────────────────
+const FILE_TYPES = {
+  // Documents
+  pdf:  { type: 'pdf',  group: 'document' },
+  docx: { type: 'docx', group: 'document' },
+  pptx: { type: 'pptx', group: 'document' },
+  // Spreadsheets / tables
+  xlsx: { type: 'xlsx', group: 'table' },
+  xls:  { type: 'xls',  group: 'table' },
+  csv:  { type: 'csv',  group: 'table' },
+  tsv:  { type: 'tsv',  group: 'table' },
+  // Code files (sent as context to LLM)
+  js:   { type: 'code', group: 'text', language: 'javascript' },
+  jsx:  { type: 'code', group: 'text', language: 'jsx' },
+  ts:   { type: 'code', group: 'text', language: 'typescript' },
+  tsx:  { type: 'code', group: 'text', language: 'tsx' },
+  py:   { type: 'code', group: 'text', language: 'python' },
+  rb:   { type: 'code', group: 'text', language: 'ruby' },
+  java: { type: 'code', group: 'text', language: 'java' },
+  c:    { type: 'code', group: 'text', language: 'c' },
+  cpp:  { type: 'code', group: 'text', language: 'cpp' },
+  cs:   { type: 'code', group: 'text', language: 'csharp' },
+  go:   { type: 'code', group: 'text', language: 'go' },
+  rs:   { type: 'code', group: 'text', language: 'rust' },
+  swift:{ type: 'code', group: 'text', language: 'swift' },
+  kt:   { type: 'code', group: 'text', language: 'kotlin' },
+  php:  { type: 'code', group: 'text', language: 'php' },
+  html: { type: 'code', group: 'text', language: 'html' },
+  css:  { type: 'code', group: 'text', language: 'css' },
+  scss: { type: 'code', group: 'text', language: 'scss' },
+  less: { type: 'code', group: 'text', language: 'less' },
+  sql:  { type: 'code', group: 'text', language: 'sql' },
+  sh:   { type: 'code', group: 'text', language: 'bash' },
+  bash: { type: 'code', group: 'text', language: 'bash' },
+  yaml: { type: 'code', group: 'text', language: 'yaml' },
+  yml:  { type: 'code', group: 'text', language: 'yaml' },
+  xml:  { type: 'code', group: 'text', language: 'xml' },
+  json: { type: 'code', group: 'text', language: 'json' },
+  md:   { type: 'code', group: 'text', language: 'markdown' },
+  r:    { type: 'code', group: 'text', language: 'r' },
+  // Plain text
+  txt:  { type: 'text', group: 'text' },
+  // Images
+  png:  { type: 'image', group: 'image' },
+  jpg:  { type: 'image', group: 'image' },
+  jpeg: { type: 'image', group: 'image' },
+  gif:  { type: 'image', group: 'image' },
+  webp: { type: 'image', group: 'image' },
+  svg:  { type: 'image', group: 'image' },
+  bmp:  { type: 'image', group: 'image' },
+};
+
+/** Extract plain text from a PPTX buffer (zip of XML slides). */
+function extractPptxText(buffer) {
+  const zip = new AdmZip(buffer);
+  const entries = zip.getEntries();
+  const slideTexts = [];
+
+  for (const entry of entries) {
+    // Slide files live inside ppt/slides/ as slideN.xml
+    if (!entry.entryName.startsWith('ppt/slides/') || !entry.entryName.endsWith('.xml')) continue;
+
+    const xml = entry.getData().toString('utf8');
+    // Extract text between <a:t>...</a:t> elements
+    const texts = [...xml.matchAll(/<a:t[^>]*>([^<]*)<\/a:t>/g)].map(m => m[1]);
+    if (texts.length) slideTexts.push(texts.join(' '));
+  }
+
+  return slideTexts.join('\n\n');
+}
+
+/** Maximum characters to send as context to the LLM (~15-20K tokens). */
+const MAX_CONTEXT_CHARS = 50000;
+
+/** Truncate text content with a notice if it exceeds MAX_CONTEXT_CHARS. */
+function truncateContent(text) {
+  if (!text || text.length <= MAX_CONTEXT_CHARS) return text;
+  return text.slice(0, MAX_CONTEXT_CHARS) +
+    `\n\n[Content truncated at ${MAX_CONTEXT_CHARS.toLocaleString()} characters. The original file was ${(text.length / 1024).toFixed(0)} KB.]`;
+}
+
 // ── File upload endpoint ─────────────────────────────────────────
 app.post('/api/upload', upload.single('file'), async (req, res) => {
   try {
@@ -26,57 +110,110 @@ app.post('/api/upload', upload.single('file'), async (req, res) => {
       return res.status(400).json({ error: 'No file uploaded' });
     }
 
-    const { originalname, mimetype, size } = req.file;
+    const { originalname, mimetype, size, buffer } = req.file;
 
-    // For images, return base64 for display
-    if (mimetype.startsWith('image/')) {
-      const base64 = req.file.buffer.toString('base64');
-      return res.json({
-        filename: originalname,
-        mimetype,
-        size,
-        type: 'image',
-        data: `data:${mimetype};base64,${base64}`,
-      });
+    /* Determine file type from extension first, fall back to MIME */
+    const ext = path.extname(originalname).toLowerCase().replace('.', '');
+    let info = FILE_TYPES[ext];
+
+    // Fallback: infer from MIME type when extension isn't in our map
+    if (!info) {
+      if (mimetype.startsWith('image/'))        info = { type: 'image', group: 'image' };
+      else if (mimetype.startsWith('text/'))     info = { type: 'text',  group: 'text' };
+      else if (mimetype === 'application/json')  info = { type: 'code', group: 'text', language: 'json' };
+      else if (mimetype === 'application/pdf')   info = { type: 'pdf',  group: 'document' };
+      else if (mimetype.includes('xml'))          info = { type: 'code', group: 'text', language: 'xml' };
+      else                                        info = { type: 'file', group: 'other' };
     }
 
-    // For PDFs, render pages as images for multimodal models
-    if (mimetype === 'application/pdf') {
-      const parser = new PDFParse({ data: req.file.buffer });
-      const result = await parser.getScreenshot({
-        imageDataUrl: true,
-        imageBuffer: false,
-      });
-      const pages = result.pages.map((p) => p.dataUrl);
-      return res.json({
-        filename: originalname,
-        mimetype,
-        size,
-        type: 'pdf',
-        pages,                            // rendered page images for the model
-        data: pages[0] || null,           // first page for preview thumbnail
-      });
-    }
-
-    // For text files, return content
-    if (mimetype.startsWith('text/') || mimetype === 'application/json') {
-      const content = req.file.buffer.toString('utf8');
-      return res.json({
-        filename: originalname,
-        mimetype,
-        size,
-        type: 'text',
-        content,
-      });
-    }
-
-    // For other files, just return metadata
-    res.json({
+    // Build base response with metadata
+    const response = {
       filename: originalname,
       mimetype,
       size,
-      type: 'file',
-    });
+      type: info.type,
+      group: info.group,
+      language: info.language || null,
+    };
+
+    switch (info.group) {
+      /* ── Images ───────────────────────────────────────────── */
+      case 'image': {
+        response.data = `data:${mimetype};base64,${buffer.toString('base64')}`;
+        break;
+      }
+
+      /* ── Text / code files (read as utf8) ─────────────────── */
+      case 'text': {
+        response.content = buffer.toString('utf8');
+        break;
+      }
+
+      /* ── Document files (PDF, DOCX, PPTX) ─────────────────── */
+      case 'document': {
+        if (info.type === 'pdf') {
+          const parser = new PDFParse({ data: buffer });
+          // Extract text — wrap in try/catch so a text failure doesn't lose screenshots
+          try { response.content = await parser.getText(); } catch (e) {
+            console.error('PDF text extraction failed:', e.message);
+            response.content = null;
+          }
+          // Render pages as images for the preview modal (independent from text)
+          try {
+            const result = await parser.getScreenshot({
+              imageDataUrl: true,
+              imageBuffer: false,
+            });
+            response.pages = result.pages.map((p) => p.dataUrl);
+          } catch (e) {
+            console.error('PDF screenshot failed:', e.message);
+          }
+        } else if (info.type === 'docx') {
+          try {
+            const result = await mammoth.extractRawText({ buffer });
+            response.content = result.value;
+          } catch (e) {
+            console.error('DOCX extraction failed:', e.message);
+          }
+        } else if (info.type === 'pptx') {
+          try { response.content = extractPptxText(buffer); } catch (e) {
+            console.error('PPTX extraction failed:', e.message);
+          }
+        }
+        break;
+      }
+
+      /* ── Spreadsheet / table files (XLSX, XLS, CSV, TSV) ─── */
+      case 'table': {
+        if (info.type === 'csv' || info.type === 'tsv') {
+          response.content = buffer.toString('utf8');
+        } else {
+          try {
+            const workbook = XLSX.read(buffer, { type: 'buffer' });
+            const parts = workbook.SheetNames.map((name) => {
+              const sheet = workbook.Sheets[name];
+              const csv = XLSX.utils.sheet_to_csv(sheet);
+              return csv ? `--- ${name} ---\n${csv}` : null;
+            }).filter(Boolean);
+            response.content = parts.join('\n\n');
+          } catch (e) {
+            console.error('XLSX/XLS parsing failed:', e.message);
+          }
+        }
+        break;
+      }
+
+      /* ── Fallback: binary / unknown — metadata only ───────── */
+      default:
+        break;
+    }
+
+    // Truncate content for LLM context window safety
+    if (response.content) {
+      response.content = truncateContent(response.content);
+    }
+
+    res.json(response);
   } catch (err) {
     console.error('Upload error:', err);
     res.status(500).json({ error: 'Upload failed' });
@@ -327,6 +464,17 @@ app.post('/api/generate', async (req, res) => {
     console.error('Generate error:', err);
     res.status(500).json({ error: 'Something went wrong' });
   }
+});
+
+// ── Multer / file-size error handler ────────────────────────────
+app.use((err, req, res, next) => {
+  if (err instanceof multer.MulterError) {
+    if (err.code === 'LIMIT_FILE_SIZE') {
+      return res.status(413).json({ error: 'File is too large. Maximum size is 10 MB.' });
+    }
+    return res.status(400).json({ error: `Upload error: ${err.message}` });
+  }
+  next(err);
 });
 
 // Start server

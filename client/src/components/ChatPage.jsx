@@ -377,16 +377,9 @@ export default function ChatPage() {
   const fileInputRef = useRef(null);
   const visibleConversationRef = useRef(null); // which conversation the user is viewing
   const { conversationId: urlConversationId } = useParams();
-  const hasLoadedFromUrl = useRef(false);
-
   /* ── Load conversation from URL param ──────────────────── */
   useEffect(() => {
-    if (!urlConversationId) {
-      hasLoadedFromUrl.current = false;
-      return;
-    }
-    if (hasLoadedFromUrl.current) return;
-    hasLoadedFromUrl.current = true;
+    if (!urlConversationId) return;
 
     setCurrentConversationId(urlConversationId);
     visibleConversationRef.current = urlConversationId;
