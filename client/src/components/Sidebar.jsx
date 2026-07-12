@@ -62,12 +62,13 @@ export default function Sidebar({
   useEffect(() => {
     if (!userMenuOpen) return;
     const handler = (e) => {
+      // Don't close if clicking the toggle button or inside the dropdown
       if (userMenuRef.current && !userMenuRef.current.contains(e.target)) {
         setUserMenuOpen(false);
       }
     };
-    window.addEventListener('click', handler);
-    return () => window.removeEventListener('click', handler);
+    window.addEventListener('mousedown', handler);
+    return () => window.removeEventListener('mousedown', handler);
   }, [userMenuOpen]);
 
   /* ── Fetch conversations ──────────────────────────────────── */
@@ -116,29 +117,10 @@ export default function Sidebar({
     }
   }, [user, fetchConversations, fetchProjects, refreshKey]);
 
-  /* ── Create conversation ──────────────────────────────────── */
-  const handleNewChat = useCallback(async () => {
-    if (user) {
-      setActionLoading('new-chat');
-      try {
-        const res = await authFetch('/api/conversations', {
-          method: 'POST',
-          body: JSON.stringify({ title: 'New conversation' }),
-        });
-        if (!res.ok) throw new Error('Failed to create');
-        const data = await res.json();
-        setConversations((prev) => [data, ...prev]);
-        onSelectConversation?.(data.id);
-      } catch (err) {
-        console.error('Failed to create conversation:', err);
-        setDataError('Failed to create conversation');
-      } finally {
-        setActionLoading(null);
-      }
-    } else {
-      onNewChat?.();
-    }
-  }, [user, onNewChat, onSelectConversation]);
+  /* ── New chat — don't create in DB until first message ──────── */
+  const handleNewChat = useCallback(() => {
+    onNewChat?.();
+  }, [onNewChat]);
 
   /* ── Rename conversation ──────────────────────────────────── */
   const renameConversation = useCallback(async (id, title) => {
@@ -570,7 +552,7 @@ export default function Sidebar({
                           <div className="flex-shrink-0 relative">
                             <button
                               onClick={(e) => { e.stopPropagation(); setKebabProjectId(kebabProjectId === project.id ? null : project.id); setKebabOpenId(null); }}
-                              className="opacity-0 group-hover:opacity-100 w-5 h-5 rounded flex items-center justify-center text-black/25 hover:text-black/60 hover:bg-black/5 transition-all duration-150"
+                              className="opacity-60 sm:opacity-0 group-hover:opacity-100 w-5 h-5 rounded flex items-center justify-center text-black/25 hover:text-black/60 hover:bg-black/5 transition-all duration-150"
                               aria-label="Project menu"
                             >
                               <span className="material-symbols-outlined text-[13px]">more_horiz</span>
@@ -598,7 +580,7 @@ export default function Sidebar({
                                   <div className="flex-shrink-0 relative">
                                     <button
                                       onClick={(e) => { e.stopPropagation(); setKebabOpenId(kebabOpenId === conv.id ? null : conv.id); setKebabProjectId(null); }}
-                                      className="opacity-0 group-hover:opacity-100 w-4 h-4 rounded flex items-center justify-center text-black/20 hover:text-black/50 hover:bg-black/5 transition-all duration-150"
+                                      className="opacity-60 sm:opacity-0 group-hover:opacity-100 w-4 h-4 rounded flex items-center justify-center text-black/20 hover:text-black/50 hover:bg-black/5 transition-all duration-150"
                                       aria-label="Conversation menu"
                                     >
                                       <span className="material-symbols-outlined text-[11px]">more_horiz</span>
@@ -648,7 +630,7 @@ export default function Sidebar({
                       <div className="flex-shrink-0 relative">
                         <button
                           onClick={(e) => { e.stopPropagation(); setKebabOpenId(kebabOpenId === conv.id ? null : conv.id); setKebabProjectId(null); }}
-                          className="opacity-0 group-hover:opacity-100 w-5 h-5 rounded flex items-center justify-center text-black/20 hover:text-black/50 hover:bg-black/5 transition-all duration-150"
+                          className="opacity-60 sm:opacity-0 group-hover:opacity-100 w-5 h-5 rounded flex items-center justify-center text-black/20 hover:text-black/50 hover:bg-black/5 transition-all duration-150"
                           aria-label="Conversation menu"
                         >
                           <span className="material-symbols-outlined text-[12px]">more_horiz</span>
@@ -678,7 +660,7 @@ export default function Sidebar({
           </div>
 
           {/* ── Auth footer (logged in) ───────────────────────── */}
-          <div className="px-3 pb-4 relative">
+          <div className="px-3 pb-4 relative" ref={userMenuRef}>
             <button
               onClick={() => setUserMenuOpen(!userMenuOpen)}
               className="w-full flex items-center gap-2.5 px-2 py-2 rounded-lg hover:bg-black/[0.03] active:scale-[0.99] transition-all duration-150"
@@ -703,7 +685,6 @@ export default function Sidebar({
             {/* User menu dropdown */}
             {userMenuOpen && (
               <div
-                ref={userMenuRef}
                 className="absolute bottom-full left-3 right-3 mb-1 bg-white border border-black/8 rounded-lg shadow-lg z-50 overflow-hidden py-1"
                 style={{ animation: 'scale-in 0.1s var(--ease-out-expo) both', transformOrigin: 'bottom left' }}
               >

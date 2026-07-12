@@ -2,7 +2,7 @@ import { useState, useEffect, useRef, useCallback } from 'react';
 import { useParams } from 'react-router-dom';
 import Markdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
-import { getToken, setTokens, clearTokens, parseOAuthTokensFromHash, authFetch } from '../lib/auth.js';
+import { getToken, setTokens, clearTokens, parseOAuthTokensFromHash, authFetch, signInWithGoogle } from '../lib/auth.js';
 import Sidebar from './Sidebar.jsx';
 
 // Import animated SVG logo for welcome screen
@@ -1601,24 +1601,13 @@ export default function ChatPage() {
                 setAuthError(null);
                 setAuthSuccessMsg(null);
                 try {
-                  const res = await fetch('/api/auth/oauth', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ provider: 'google' }),
-                  });
-                  if (res.ok) {
-                    const { url } = await res.json();
-                    if (url) {
-                      window.location.href = url;
-                      return;
-                    }
-                  }
-                  const errData = await res.json().catch(() => ({}));
-                  setAuthError(errData.error || 'OAuth failed');
+                  // Use client-side Supabase OAuth (handles PKCE via cookies)
+                  await signInWithGoogle();
+                  // The browser navigates away — no need to handle the response
                 } catch (err) {
                   setAuthError(err.message);
+                  setAuthLoading(false);
                 }
-                setAuthLoading(false);
               }}
               disabled={authLoading}
               className="w-full flex items-center justify-center gap-2.5 px-4 py-2.5 rounded-xl border border-black/10 text-sm text-black/60 hover:border-black/25 hover:text-black active:scale-[0.98] transition-all duration-150 disabled:opacity-40"
