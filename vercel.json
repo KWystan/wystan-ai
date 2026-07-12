@@ -1,5 +1,4 @@
 {
-  "nodeVersion": "22",
   "buildCommand": "cd client && npm run build",
   "outputDirectory": "client/dist",
   "installCommand": "npm install --prefix client && npm install --prefix server",
