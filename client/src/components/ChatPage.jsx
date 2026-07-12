@@ -1556,6 +1556,9 @@ export default function ChatPage() {
             <p className="text-center text-[10px] text-black/20 mt-2">
               AI can make mistakes. Consider checking important information.
             </p>
+            <p className="text-center text-[9px] text-black/15 mt-0.5">
+              A personal project by Karl Wystan &mdash; still under development.
+            </p>
           </div>
         </footer>
       </div>
