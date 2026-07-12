@@ -13,9 +13,9 @@ const aiSparkSvg = new URL('../assets/AI Spark_ Interactive Assistant.svg', impo
 const LARGE_TEXT_THRESHOLD = 15000;
 
 const MODELS = [
+  { id: 'mimo-v2.5-free', name: 'MiMo-V2.5', multimodal: false },
   { id: 'minimaxai/minimax-m3', name: 'MiniMax M3', multimodal: true },
   { id: 'deepseek-v4-flash-free', name: 'DeepSeek V4 Flash', multimodal: false },
-  { id: 'mimo-v2.5-free', name: 'MiMo-V2.5', multimodal: false },
   { id: 'nemotron-3-ultra-free', name: 'Nemotron 3 Ultra', multimodal: false },
   { id: 'north-mini-code-free', name: 'North Mini Code', multimodal: false },
 ];
@@ -211,7 +211,7 @@ function renderMessageText(text) {
       remarkPlugins={[remarkGfm]}
       components={{
         p({ children }) {
-          return <p className="my-1.5 first:mt-0 last:mb-0 leading-relaxed">{children}</p>;
+          return <p className="my-0.5 first:mt-0 last:mb-0 leading-normal">{children}</p>;
         },
         pre({ children }) {
           // Detect fenced code blocks via the code child's className
@@ -231,7 +231,7 @@ function renderMessageText(text) {
 
           // Fallback: plain pre block (edge case like indented code)
           return (
-            <pre className="bg-black/5 border border-black/8 rounded-lg px-3 py-2.5 my-2 overflow-x-auto text-[13px] leading-relaxed font-mono text-black/75 whitespace-pre-wrap">
+            <pre className="bg-black/5 border border-black/8 rounded-lg px-3 py-2.5 my-1.5 overflow-x-auto text-[13px] leading-relaxed font-mono text-black/75 whitespace-pre-wrap">
               {children}
             </pre>
           );
@@ -249,32 +249,32 @@ function renderMessageText(text) {
           return <code className="text-[13px] font-mono" {...props}>{children}</code>;
         },
         ul({ children }) {
-          return <ul className="list-disc pl-5 my-1.5 space-y-0.5">{children}</ul>;
+          return <ul className="list-disc pl-5 my-0.5 space-y-0">{children}</ul>;
         },
         ol({ children }) {
-          return <ol className="list-decimal pl-5 my-1.5 space-y-0.5">{children}</ol>;
+          return <ol className="list-decimal pl-5 my-0.5 space-y-0">{children}</ol>;
         },
         li({ children }) {
-          return <li className="leading-relaxed">{children}</li>;
+          return <li className="leading-normal">{children}</li>;
         },
         h1({ children }) {
-          return <h1 className="text-base font-semibold mt-4 mb-1.5">{children}</h1>;
+          return <h1 className="text-base font-semibold mt-2 mb-0.5">{children}</h1>;
         },
         h2({ children }) {
-          return <h2 className="text-[15px] font-semibold mt-4 mb-1.5">{children}</h2>;
+          return <h2 className="text-[15px] font-semibold mt-2 mb-0.5">{children}</h2>;
         },
         h3({ children }) {
-          return <h3 className="text-sm font-semibold mt-3 mb-1">{children}</h3>;
+          return <h3 className="text-sm font-semibold mt-1.5 mb-0">{children}</h3>;
         },
         blockquote({ children }) {
           return (
-            <blockquote className="border-l-2 border-black/15 pl-3 my-1.5 text-black/50 italic">
+            <blockquote className="border-l-2 border-black/15 pl-3 my-0.5 text-black/50 italic">
               {children}
             </blockquote>
           );
         },
         hr() {
-          return <hr className="my-3 border-black/8" />;
+          return <hr className="my-1.5 border-black/8" />;
         },
         strong({ children }) {
           return <strong className="font-semibold text-black/80">{children}</strong>;
@@ -756,6 +756,7 @@ export default function ChatPage() {
       const streamConvId = effectiveConversationId; // captured for background-stream check
 
       setMessages((prev) => [...prev, { role: 'assistant', content: '' }]);
+      let receivedFirstToken = false;
 
       while (true) {
         const { done, value } = await reader.read();
@@ -777,6 +778,12 @@ export default function ChatPage() {
             if (parsed.error) throw new Error(parsed.error);
             const content = parsed.choices?.[0]?.delta?.content || parsed.content || '';
             if (content) {
+              /* Clear loading indicator on first token — LLM has started */
+              if (!receivedFirstToken) {
+                receivedFirstToken = true;
+                setIsLoading(false);
+                setLoadingPhase(null);
+              }
               assistantText += content;
               // Only update live messages if user is still viewing this conversation
               if (streamConvId === visibleConversationRef.current) {
@@ -1265,7 +1272,7 @@ export default function ChatPage() {
                         /* ── Search results block ──────────────────── */
                         typeof msg.content === 'string' && msg.content.startsWith('[Web search results for') ? (
                           <div className="max-w-[80%]">
-                            <div className="bg-blue-50 border border-blue-100 rounded-2xl rounded-br-md px-3.5 py-2.5 text-[11px] leading-relaxed whitespace-pre-wrap">
+                            <div className="bg-blue-50 border border-blue-100 rounded-2xl rounded-br-md px-3.5 py-2.5 text-[11px] leading-relaxed whitespace-pre-wrap [overflow-wrap:anywhere]">
                               <div className="flex items-center gap-1.5 mb-1.5 text-black/40">
                                 <span className="material-symbols-outlined text-[13px]">travel_explore</span>
                                 <span className="font-medium text-[10px] uppercase tracking-wider">Web Search</span>
@@ -1319,7 +1326,7 @@ export default function ChatPage() {
                             );
                           })()}
 
-                          <div className="bg-black text-white rounded-2xl rounded-br-md px-4 py-3 pr-10 text-sm leading-relaxed whitespace-pre-wrap">
+                          <div className="bg-black text-white rounded-2xl rounded-br-md px-4 py-3 pr-10 text-sm leading-relaxed whitespace-pre-wrap [overflow-wrap:anywhere]">
                             {renderUserContent(msg.content)}
                           </div>
                           {/* Edit — bottom-right inside bubble, hover only */}
@@ -1335,12 +1342,12 @@ export default function ChatPage() {
                         </div>
                       )) : msg.content ? (
                         /* ── Assistant message ───────────────────────── */
-                        <div className={`${msg.generatedImages?.length ? 'max-w-[90%] sm:max-w-[500px]' : 'max-w-[80%]'} flex gap-2.5`}>
+                        <div className={`${msg.generatedImages?.length ? 'max-w-[90%] sm:max-w-[500px]' : 'max-w-[95%] sm:max-w-[85%]'} flex gap-2.5`}>
                           <div className="w-7 h-7 rounded-lg flex-shrink-0 mt-0.5 overflow-hidden min-w-0">
                             <img src={aiSparkSvg} alt="" className="w-full h-full object-cover" />
                           </div>
-                          <div className="relative group min-w-0 overflow-x-auto">
-                            <div className={`border border-black/8 rounded-2xl rounded-bl-md text-sm leading-relaxed text-black/70 ${msg.generatedImages?.length ? 'pb-1' : 'px-4 pb-8 pt-3'}`}>
+                          <div className="relative group min-w-0">
+                            <div className={`border border-black/8 rounded-2xl rounded-bl-md text-sm leading-normal text-black/70 [overflow-wrap:anywhere] ${msg.generatedImages?.length ? 'pb-1' : 'px-3 md:px-4 pb-6 md:pb-8 pt-3'}`}>
                               {msg.generatedImages?.length > 0 && (
                                 <div className="space-y-2">
                                   {msg.generatedImages.map((url, i) => (
@@ -1355,7 +1362,7 @@ export default function ChatPage() {
                                 </div>
                               )}
                               {msg.content && (
-                                <div className="whitespace-nowrap min-w-0" style={{ overflowX: 'auto' }}>
+                                <div className="[overflow-wrap:anywhere] min-w-0">
                                   {renderMessageText(msg.content)}
                                 </div>
                               )}
