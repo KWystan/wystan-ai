@@ -3,7 +3,12 @@ const cors = require('cors');
 const fs = require('fs');
 const path = require('path');
 const multer = require('multer');
-const { PDFParse } = require('pdf-parse');
+let PDFParse;
+try {
+  PDFParse = require('pdf-parse').PDFParse;
+} catch (e) {
+  console.warn('pdf-parse not available — PDF processing disabled:', e.message);
+}
 const mammoth = require('mammoth');
 const XLSX = require('xlsx');
 const AdmZip = require('adm-zip');
@@ -173,6 +178,10 @@ app.post('/api/upload', upload.single('file'), async (req, res) => {
       /* ── Document files (PDF, DOCX, PPTX) ─────────────────── */
       case 'document': {
         if (info.type === 'pdf') {
+          if (!PDFParse) {
+            response.content = 'PDF processing is not available in this environment.';
+            break;
+          }
           const parser = new PDFParse({ data: buffer });
           // Extract text — wrap in try/catch so a text failure doesn't lose screenshots
           try { response.content = await parser.getText(); } catch (e) {
