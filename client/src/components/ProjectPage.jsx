@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
-import { supabase } from '../lib/supabase.js';
+import { authFetch, getToken, clearTokens } from '../lib/auth.js';
 import Sidebar from './Sidebar.jsx';
 
 export default function ProjectPage() {
@@ -21,15 +21,12 @@ export default function ProjectPage() {
 
   /* ── Auth state ─────────────────────────────────────────── */
   useEffect(() => {
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      setUser(session?.user ?? null);
-    });
-
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
-      setUser(session?.user ?? null);
-    });
-
-    return () => subscription.unsubscribe();
+    const token = getToken();
+    if (token) {
+      authFetch('/api/auth/me').then((res) => {
+        if (res.ok) res.json().then((data) => setUser(data.user));
+      });
+    }
   }, []);
 
   /* ── Fetch project + conversations on mount ────────────── */
@@ -41,26 +38,23 @@ export default function ProjectPage() {
       setError(null);
 
       try {
-        const [projectRes, convRes] = await Promise.all([
-          supabase.from('projects').select('*').eq('id', id).single(),
-          supabase.from('conversations').select('*').eq('project_id', id).order('updated_at', { ascending: false }),
-        ]);
+        const res = await authFetch(`/api/projects/${id}`);
 
         if (cancelled) return;
 
-        if (projectRes.error) throw projectRes.error;
-        if (convRes.error) throw convRes.error;
-
-        setProject(projectRes.data);
-        setConversations(convRes.data || []);
+        if (res.status === 404) {
+          setProject(null);
+        } else if (!res.ok) {
+          throw new Error('Failed to load project');
+        } else {
+          const data = await res.json();
+          setProject(data.project);
+          setConversations(data.conversations || []);
+        }
       } catch (err) {
         console.error('Failed to load project:', err);
         if (!cancelled) {
-          if (err?.code === 'PGRST116') {
-            setProject(null);
-          } else {
-            setError(err.message);
-          }
+          setError(err.message);
         }
       } finally {
         if (!cancelled) setLoading(false);
@@ -85,22 +79,20 @@ export default function ProjectPage() {
     if (!text || isSending) return;
     setIsSending(true);
 
-    /* Check if user is logged in */
-    const { data: { session } } = await supabase.auth.getSession();
-    const u = session?.user;
-
-    if (u) {
+    if (user) {
       /* Logged in: create conversation in this project */
       const title = text.length > 45 ? text.slice(0, 45) + '…' : text;
       try {
-        const { data, error } = await supabase
-          .from('conversations')
-          .insert({ user_id: u.id, project_id: id, title })
-          .select()
-          .single();
+        const res = await authFetch('/api/conversations', {
+          method: 'POST',
+          body: JSON.stringify({ title, project_id: id }),
+        });
 
-        if (!error && data) {
+        if (res.ok) {
+          const data = await res.json();
           navigate(`/chat/${data.id}`);
+        } else {
+          throw new Error('Failed to create conversation');
         }
       } catch (err) {
         console.error('Failed to create conversation:', err);
@@ -113,7 +105,7 @@ export default function ProjectPage() {
       setIsSending(false);
       navigate('/chat', { state: { initialText: text } });
     }
-  }, [input, id, navigate, isSending]);
+  }, [input, id, navigate, isSending, user]);
 
   /* ── Keyboard: Enter to send, Shift+Enter newline ─────── */
   const handleKeyDown = (e) => {
@@ -133,7 +125,11 @@ export default function ProjectPage() {
   };
 
   const handleSignOut = async () => {
-    await supabase.auth.signOut();
+    try {
+      await authFetch('/api/auth/signout', { method: 'POST' });
+    } catch { /* ignore */ }
+    clearTokens();
+    setUser(null);
   };
 
   const handleOpenAuth = () => {

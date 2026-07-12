@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { supabase } from '../lib/supabase.js';
+import { authFetch } from '../lib/auth.js';
 import logo from '../assets/logo.png';
 
 export default function Sidebar({
@@ -76,12 +76,9 @@ export default function Sidebar({
     setLoadingConversations(true);
     setDataError(null);
     try {
-      const { data, error } = await supabase
-        .from('conversations')
-        .select('*')
-        .eq('user_id', user.id)
-        .order('updated_at', { ascending: false });
-      if (error) throw error;
+      const res = await authFetch('/api/conversations');
+      if (!res.ok) throw new Error('Failed to fetch');
+      const data = await res.json();
       setConversations(data || []);
     } catch (err) {
       console.error('Failed to fetch conversations:', err);
@@ -96,12 +93,9 @@ export default function Sidebar({
     if (!user) return;
     setLoadingProjects(true);
     try {
-      const { data, error } = await supabase
-        .from('projects')
-        .select('*')
-        .eq('user_id', user.id)
-        .order('updated_at', { ascending: false });
-      if (error) throw error;
+      const res = await authFetch('/api/projects');
+      if (!res.ok) throw new Error('Failed to fetch');
+      const data = await res.json();
       setProjects(data || []);
     } catch (err) {
       console.error('Failed to fetch projects:', err);
@@ -127,12 +121,12 @@ export default function Sidebar({
     if (user) {
       setActionLoading('new-chat');
       try {
-        const { data, error } = await supabase
-          .from('conversations')
-          .insert({ user_id: user.id, title: 'New conversation' })
-          .select()
-          .single();
-        if (error) throw error;
+        const res = await authFetch('/api/conversations', {
+          method: 'POST',
+          body: JSON.stringify({ title: 'New conversation' }),
+        });
+        if (!res.ok) throw new Error('Failed to create');
+        const data = await res.json();
         setConversations((prev) => [data, ...prev]);
         onSelectConversation?.(data.id);
       } catch (err) {
@@ -151,11 +145,11 @@ export default function Sidebar({
     if (!title.trim()) return;
     setActionLoading(`rename-conversation-${id}`);
     try {
-      const { error } = await supabase
-        .from('conversations')
-        .update({ title: title.trim(), updated_at: new Date().toISOString() })
-        .eq('id', id);
-      if (error) throw error;
+      const res = await authFetch(`/api/conversations/${id}`, {
+        method: 'PUT',
+        body: JSON.stringify({ title: title.trim() }),
+      });
+      if (!res.ok) throw new Error('Failed to rename');
       setConversations((prev) =>
         prev.map((c) => (c.id === id ? { ...c, title: title.trim() } : c))
       );
@@ -171,11 +165,8 @@ export default function Sidebar({
   const deleteConversation = useCallback(async (id) => {
     setActionLoading(`delete-conversation-${id}`);
     try {
-      const { error } = await supabase
-        .from('conversations')
-        .delete()
-        .eq('id', id);
-      if (error) throw error;
+      const res = await authFetch(`/api/conversations/${id}`, { method: 'DELETE' });
+      if (!res.ok) throw new Error('Failed to delete');
       setConversations((prev) => prev.filter((c) => c.id !== id));
     } catch (err) {
       console.error('Failed to delete conversation:', err);
@@ -189,12 +180,12 @@ export default function Sidebar({
     if (!user || !newProjectName.trim()) return;
     setActionLoading('create-project');
     try {
-      const { data, error } = await supabase
-        .from('projects')
-        .insert({ user_id: user.id, name: newProjectName.trim() })
-        .select()
-        .single();
-      if (error) throw error;
+      const res = await authFetch('/api/projects', {
+        method: 'POST',
+        body: JSON.stringify({ name: newProjectName.trim() }),
+      });
+      if (!res.ok) throw new Error('Failed to create');
+      const data = await res.json();
       setProjects((prev) => [data, ...prev]);
       setNewProjectName('');
       setCreatingProject(false);
@@ -209,11 +200,11 @@ export default function Sidebar({
     if (!name.trim()) return;
     setActionLoading(`rename-project-${id}`);
     try {
-      const { error } = await supabase
-        .from('projects')
-        .update({ name: name.trim(), updated_at: new Date().toISOString() })
-        .eq('id', id);
-      if (error) throw error;
+      const res = await authFetch(`/api/projects/${id}`, {
+        method: 'PUT',
+        body: JSON.stringify({ name: name.trim() }),
+      });
+      if (!res.ok) throw new Error('Failed to rename');
       setProjects((prev) =>
         prev.map((p) => (p.id === id ? { ...p, name: name.trim() } : p))
       );
@@ -229,11 +220,8 @@ export default function Sidebar({
   const deleteProject = useCallback(async (id) => {
     setActionLoading(`delete-project-${id}`);
     try {
-      const { error } = await supabase
-        .from('projects')
-        .delete()
-        .eq('id', id);
-      if (error) throw error;
+      const res = await authFetch(`/api/projects/${id}`, { method: 'DELETE' });
+      if (!res.ok) throw new Error('Failed to delete');
       setProjects((prev) => prev.filter((p) => p.id !== id));
       // Conversations in this project are now project_id = null (cascade SET NULL)
       fetchConversations();
@@ -248,11 +236,11 @@ export default function Sidebar({
   const moveConversation = useCallback(async (conversationId, projectId) => {
     setActionLoading(`move-conversation-${conversationId}`);
     try {
-      const { error } = await supabase
-        .from('conversations')
-        .update({ project_id: projectId, updated_at: new Date().toISOString() })
-        .eq('id', conversationId);
-      if (error) throw error;
+      const res = await authFetch(`/api/conversations/${conversationId}`, {
+        method: 'PUT',
+        body: JSON.stringify({ project_id: projectId }),
+      });
+      if (!res.ok) throw new Error('Failed to move');
       setConversations((prev) =>
         prev.map((c) =>
           c.id === conversationId ? { ...c, project_id: projectId } : c

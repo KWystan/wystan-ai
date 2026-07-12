@@ -1,0 +1,16 @@
+{
+  "buildCommand": "cd client && npm run build",
+  "outputDirectory": "client/dist",
+  "installCommand": "npm install --prefix client && npm install --prefix server",
+  "rewrites": [
+    { "source": "/api/(.*)", "destination": "/api" },
+    { "source": "/(.*)", "destination": "/" }
+  ],
+  "functions": {
+    "api/index.js": {
+      "memory": 256,
+      "maxDuration": 30,
+      "includeFiles": "server/system-prompt.txt"
+    }
+  }
+}

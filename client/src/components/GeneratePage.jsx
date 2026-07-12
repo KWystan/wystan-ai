@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from 'react';
 import { Link, useNavigate, useLocation } from 'react-router-dom';
-import { supabase } from '../lib/supabase.js';
+import { getToken, setTokens, clearTokens, parseOAuthTokensFromHash, authFetch } from '../lib/auth.js';
 import Sidebar from './Sidebar.jsx';
 import logo from '../assets/logo.png';
 
@@ -92,15 +92,12 @@ export default function GeneratePage() {
 
   /* ── Auth state ─────────────────────────────────────────── */
   useEffect(() => {
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      setUser(session?.user ?? null);
-    });
-
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
-      setUser(session?.user ?? null);
-    });
-
-    return () => subscription.unsubscribe();
+    const token = getToken();
+    if (token) {
+      authFetch('/api/auth/me').then((res) => {
+        if (res.ok) res.json().then((data) => setUser(data.user));
+      });
+    }
   }, []);
 
   /* ── Accept initial prompt from ChatPage navigation ─────── */
@@ -268,7 +265,13 @@ export default function GeneratePage() {
 
   /* ── Sidebar handlers ───────────────────────────────────── */
   const handleClear = () => navigate('/chat');
-  const handleSignOut = async () => { await supabase.auth.signOut(); };
+  const handleSignOut = async () => {
+    try {
+      await authFetch('/api/auth/signout', { method: 'POST' });
+    } catch { /* ignore */ }
+    clearTokens();
+    setUser(null);
+  };
   const handleOpenAuth = () => navigate('/chat');
 
   return (

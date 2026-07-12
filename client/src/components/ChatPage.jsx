@@ -2,7 +2,7 @@ import { useState, useEffect, useRef, useCallback } from 'react';
 import { useParams } from 'react-router-dom';
 import Markdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
-import { supabase } from '../lib/supabase.js';
+import { getToken, setTokens, clearTokens, parseOAuthTokensFromHash, authFetch } from '../lib/auth.js';
 import Sidebar from './Sidebar.jsx';
 
 // Import animated SVG logo for welcome screen
@@ -434,16 +434,6 @@ function iconForFilename(filename) {
   return 'description';
 }
 
-/* ── Timeout wrapper for hanging auth calls ─────────────────── */
-function withTimeout(promise, ms = 15000) {
-  return Promise.race([
-    promise,
-    new Promise((_, reject) =>
-      setTimeout(() => reject(new Error('Request timed out. Check your network and try again.')), ms)
-    ),
-  ]);
-}
-
 export default function ChatPage() {
   const [messages, setMessages] = useState([]);
   const [input, setInput] = useState('');
@@ -497,16 +487,14 @@ export default function ChatPage() {
     setAttachedFiles([]);
     setLoadingMessages(true);
 
-    supabase
-      .from('messages')
-      .select('role, content')
-      .eq('conversation_id', urlConversationId)
-      .order('created_at', { ascending: true })
-      .then(({ data, error }) => {
+    authFetch(`/api/conversations/${urlConversationId}/messages`)
+      .then(async (res) => {
         if (cancelled) return;
+        if (!res.ok) throw new Error('Failed to load messages');
+        const data = await res.json();
         setLoadingMessages(false);
-        if (!error && data && data.length > 0) {
-          setMessages(data);
+        if (data.messages && data.messages.length > 0) {
+          setMessages(data.messages);
         }
       })
       .catch((err) => {
@@ -555,13 +543,26 @@ export default function ChatPage() {
 
   /* ── Auth session ────────────────────────────────────────── */
   useEffect(() => {
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      setUser(session?.user ?? null);
-    });
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
-      setUser(session?.user ?? null);
-    });
-    return () => subscription.unsubscribe();
+    // First, check if we're returning from an OAuth redirect with tokens
+    const oauthTokens = parseOAuthTokensFromHash();
+    if (oauthTokens) {
+      setTokens(oauthTokens.accessToken, oauthTokens.refreshToken);
+      // Clean the URL hash
+      window.location.hash = '';
+    }
+
+    // Then check for an existing token and verify it with the server
+    const token = getToken();
+    if (token) {
+      authFetch('/api/auth/me').then((res) => {
+        if (res.ok) {
+          res.json().then((data) => setUser(data.user));
+        } else {
+          // Token invalid — clear it
+          clearTokens();
+        }
+      });
+    }
   }, []);
 
   /* ── Send message with streaming ──────────────────────────── */
@@ -582,14 +583,14 @@ export default function ChatPage() {
       if (!effectiveConversationId) {
         // No conversation yet — create one with the title already set
         try {
-          const { data, error } = await supabase
-            .from('conversations')
-            .insert({ user_id: user.id, title: titleSuggestion })
-            .select()
-            .single();
-          if (!error && data) {
-            effectiveConversationId = data.id;
-            setCurrentConversationId(data.id);
+          const res = await authFetch('/api/conversations', {
+            method: 'POST',
+            body: JSON.stringify({ title: titleSuggestion }),
+          });
+          if (res.ok) {
+            const conv = await res.json();
+            effectiveConversationId = conv.id;
+            setCurrentConversationId(conv.id);
             setConversationRefetchKey((k) => k + 1);
           }
         } catch (err) {
@@ -598,11 +599,11 @@ export default function ChatPage() {
       } else if (isFirstMessage) {
         // Conversation exists on a fresh chat — update the title
         try {
-          const { error } = await supabase
-            .from('conversations')
-            .update({ title: titleSuggestion, updated_at: new Date().toISOString() })
-            .eq('id', effectiveConversationId);
-          if (!error) setConversationRefetchKey((k) => k + 1);
+          const res = await authFetch(`/api/conversations/${effectiveConversationId}`, {
+            method: 'PUT',
+            body: JSON.stringify({ title: titleSuggestion }),
+          });
+          if (res.ok) setConversationRefetchKey((k) => k + 1);
         } catch (err) {
           console.error('Failed to update conversation title:', err);
         }
@@ -660,17 +661,18 @@ export default function ChatPage() {
 
         setMessages((prev) => [...prev, { role: 'assistant', content: '', generatedImages: imageDataUrls }]);
 
-        /* ── Save to Supabase ────────────────────────────── */
+        /* ── Save messages ───────────────────────────────── */
         if (effectiveConversationId) {
           try {
-            await supabase.from('messages').insert([
-              { conversation_id: effectiveConversationId, role: 'user', content: promptText },
-              { conversation_id: effectiveConversationId, role: 'assistant', content: `![Generated image](${imageDataUrls[0] || ''})` },
-            ]);
-            await supabase
-              .from('conversations')
-              .update({ updated_at: new Date().toISOString() })
-              .eq('id', effectiveConversationId);
+            await authFetch(`/api/conversations/${effectiveConversationId}/messages`, {
+              method: 'POST',
+              body: JSON.stringify({
+                messages: [
+                  { role: 'user', content: promptText },
+                  { role: 'assistant', content: `![Generated image](${imageDataUrls[0] || ''})` },
+                ],
+              }),
+            });
             setConversationRefetchKey((k) => k + 1);
           } catch (err) {
             console.error('Failed to save generated messages:', err);
@@ -802,19 +804,19 @@ export default function ChatPage() {
         }
       }
 
-      /* ── Save messages to Supabase ─────────────────────────── */
+      /* ── Save messages ────────────────────────────────────── */
       if (effectiveConversationId) {
         const assistantReply = assistantText || 'No response received. Please try again.';
         try {
-          await supabase.from('messages').insert([
-            { conversation_id: effectiveConversationId, role: 'user', content: userMsg.content },
-            { conversation_id: effectiveConversationId, role: 'assistant', content: assistantReply },
-          ]);
-          // Bump updated_at so the sidebar puts it at the top
-          await supabase
-            .from('conversations')
-            .update({ updated_at: new Date().toISOString() })
-            .eq('id', effectiveConversationId);
+          await authFetch(`/api/conversations/${effectiveConversationId}/messages`, {
+            method: 'POST',
+            body: JSON.stringify({
+              messages: [
+                { role: 'user', content: userMsg.content },
+                { role: 'assistant', content: assistantReply },
+              ],
+            }),
+          });
           setConversationRefetchKey((k) => k + 1);
         } catch (err) {
           console.error('Failed to save messages:', err);
@@ -860,16 +862,15 @@ export default function ChatPage() {
     setAttachedFiles([]);
     setLoadingMessages(true);
 
-    /* Load saved messages from Supabase */
+    /* Load saved messages */
     try {
-      const { data, error } = await supabase
-        .from('messages')
-        .select('role, content')
-        .eq('conversation_id', conversationId)
-        .order('created_at', { ascending: true });
+      const res = await authFetch(`/api/conversations/${conversationId}/messages`);
       setLoadingMessages(false);
-      if (!error && data && data.length > 0) {
-        setMessages(data);
+      if (res.ok) {
+        const data = await res.json();
+        if (data.length > 0) {
+          setMessages(data);
+        }
       }
     } catch (err) {
       setLoadingMessages(false);
@@ -880,7 +881,11 @@ export default function ChatPage() {
 
   /* ── Sign out ────────────────────────────────────────────── */
   const handleSignOut = useCallback(async () => {
-    await supabase.auth.signOut();
+    try {
+      await authFetch('/api/auth/signout', { method: 'POST' });
+    } catch { /* server might be down — clear locally anyway */ }
+    clearTokens();
+    setUser(null);
   }, []);
 
   /* ── Open auth modal ─────────────────────────────────────── */
@@ -1586,11 +1591,20 @@ export default function ChatPage() {
                 setAuthError(null);
                 setAuthSuccessMsg(null);
                 try {
-                  const { error } = await withTimeout(
-                    supabase.auth.signInWithOAuth({ provider: 'google' }),
-                    20000
-                  );
-                  if (error) setAuthError(error.message);
+                  const res = await fetch('/api/auth/oauth', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ provider: 'google' }),
+                  });
+                  if (res.ok) {
+                    const { url } = await res.json();
+                    if (url) {
+                      window.location.href = url;
+                      return;
+                    }
+                  }
+                  const errData = await res.json().catch(() => ({}));
+                  setAuthError(errData.error || 'OAuth failed');
                 } catch (err) {
                   setAuthError(err.message);
                 }
@@ -1658,21 +1672,24 @@ export default function ChatPage() {
                   setAuthError(null);
                   setAuthSuccessMsg(null);
                   try {
-                    const result = await withTimeout(
-                      authMode === 'login'
-                        ? supabase.auth.signInWithPassword({ email: authEmail, password: authPassword })
-                        : supabase.auth.signUp({ email: authEmail, password: authPassword }),
-                      20000
-                    );
-                    const { data, error } = result;
-                    if (error) {
-                      setAuthError(error.message);
+                    const endpoint = authMode === 'login' ? '/api/auth/signin' : '/api/auth/signup';
+                    const res = await fetch(endpoint, {
+                      method: 'POST',
+                      headers: { 'Content-Type': 'application/json' },
+                      body: JSON.stringify({ email: authEmail, password: authPassword }),
+                    });
+                    const data = await res.json();
+                    if (!res.ok) {
+                      setAuthError(data.error || 'Authentication failed');
                     } else if (authMode === 'register' && !data.session) {
-                      // Email confirmation required — Supabase created the user but no session
-                      setAuthSuccessMsg('Account created! Check your email to confirm your sign-in.');
+                      // Email confirmation required
+                      setAuthSuccessMsg(data.message || 'Account created! Check your email to confirm your sign-in.');
                       setAuthEmail('');
                       setAuthPassword('');
-                    } else {
+                    } else if (data.session) {
+                      // Successful login or registration with session
+                      setTokens(data.session.access_token, data.session.refresh_token);
+                      setUser(data.user);
                       setAuthOpen(false);
                       setAuthEmail('');
                       setAuthPassword('');
