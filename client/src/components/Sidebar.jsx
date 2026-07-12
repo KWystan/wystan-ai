@@ -27,6 +27,7 @@ export default function Sidebar({
   const [kebabOpenId, setKebabOpenId] = useState(null); // conversation id with open kebab
   const [kebabProjectId, setKebabProjectId] = useState(null); // project id with open kebab
   const [userMenuOpen, setUserMenuOpen] = useState(false);
+  const [actionLoading, setActionLoading] = useState(null); // string id tracking in-flight CRUD op
   const [creatingProject, setCreatingProject] = useState(false);
   const [newProjectName, setNewProjectName] = useState('');
 
@@ -124,6 +125,7 @@ export default function Sidebar({
   /* ── Create conversation ──────────────────────────────────── */
   const handleNewChat = useCallback(async () => {
     if (user) {
+      setActionLoading('new-chat');
       try {
         const { data, error } = await supabase
           .from('conversations')
@@ -136,6 +138,8 @@ export default function Sidebar({
       } catch (err) {
         console.error('Failed to create conversation:', err);
         setDataError('Failed to create conversation');
+      } finally {
+        setActionLoading(null);
       }
     } else {
       onNewChat?.();
@@ -145,6 +149,7 @@ export default function Sidebar({
   /* ── Rename conversation ──────────────────────────────────── */
   const renameConversation = useCallback(async (id, title) => {
     if (!title.trim()) return;
+    setActionLoading(`rename-conversation-${id}`);
     try {
       const { error } = await supabase
         .from('conversations')
@@ -159,10 +164,12 @@ export default function Sidebar({
     }
     setRenamingId(null);
     setKebabOpenId(null);
+    setActionLoading(null);
   }, []);
 
   /* ── Delete conversation ──────────────────────────────────── */
   const deleteConversation = useCallback(async (id) => {
+    setActionLoading(`delete-conversation-${id}`);
     try {
       const { error } = await supabase
         .from('conversations')
@@ -174,11 +181,13 @@ export default function Sidebar({
       console.error('Failed to delete conversation:', err);
     }
     setKebabOpenId(null);
+    setActionLoading(null);
   }, []);
 
   /* ── Create project ───────────────────────────────────────── */
   const createProject = useCallback(async () => {
     if (!user || !newProjectName.trim()) return;
+    setActionLoading('create-project');
     try {
       const { data, error } = await supabase
         .from('projects')
@@ -192,11 +201,13 @@ export default function Sidebar({
     } catch (err) {
       console.error('Failed to create project:', err);
     }
+    setActionLoading(null);
   }, [user, newProjectName]);
 
   /* ── Rename project ───────────────────────────────────────── */
   const renameProject = useCallback(async (id, name) => {
     if (!name.trim()) return;
+    setActionLoading(`rename-project-${id}`);
     try {
       const { error } = await supabase
         .from('projects')
@@ -211,10 +222,12 @@ export default function Sidebar({
     }
     setRenamingId(null);
     setKebabProjectId(null);
+    setActionLoading(null);
   }, []);
 
   /* ── Delete project ───────────────────────────────────────── */
   const deleteProject = useCallback(async (id) => {
+    setActionLoading(`delete-project-${id}`);
     try {
       const { error } = await supabase
         .from('projects')
@@ -228,10 +241,12 @@ export default function Sidebar({
       console.error('Failed to delete project:', err);
     }
     setKebabProjectId(null);
+    setActionLoading(null);
   }, [fetchConversations]);
 
   /* ── Move conversation to project ─────────────────────────── */
   const moveConversation = useCallback(async (conversationId, projectId) => {
+    setActionLoading(`move-conversation-${conversationId}`);
     try {
       const { error } = await supabase
         .from('conversations')
@@ -248,6 +263,7 @@ export default function Sidebar({
     }
     setMovingConversationId(null);
     setKebabOpenId(null);
+    setActionLoading(null);
   }, []);
 
   /* ── Toggle project expand ────────────────────────────────── */
@@ -283,11 +299,12 @@ export default function Sidebar({
             value={renameValue}
             onChange={(e) => setRenameValue(e.target.value)}
             onKeyDown={(e) => {
-              if (e.key === 'Enter') renameConversation(conversationId, renameValue);
+              if (e.key === 'Enter' && !actionLoading) renameConversation(conversationId, renameValue);
               if (e.key === 'Escape') { setRenamingId(null); setKebabOpenId(null); }
             }}
-            onBlur={() => renameConversation(conversationId, renameValue)}
-            className="w-full text-[11px] rounded-md px-2 py-1 border border-black/10 outline-none focus:border-black/25 bg-white"
+            onBlur={() => { if (!actionLoading) renameConversation(conversationId, renameValue); }}
+            disabled={actionLoading === `rename-conversation-${conversationId}`}
+            className="w-full text-[11px] rounded-md px-2 py-1 border border-black/10 outline-none focus:border-black/25 bg-white disabled:opacity-40"
             placeholder="Rename…"
           />
         </div>
@@ -300,7 +317,8 @@ export default function Sidebar({
           <div className="text-[10px] text-black/40 mb-1">Move to project:</div>
           <button
             onClick={() => moveConversation(conversationId, null)}
-            className="w-full text-left text-[11px] px-2 py-1 rounded hover:bg-black/5 text-black/60"
+            disabled={actionLoading === `move-conversation-${conversationId}`}
+            className="w-full text-left text-[11px] px-2 py-1 rounded hover:bg-black/5 text-black/60 disabled:opacity-40"
           >
             No project
           </button>
@@ -308,7 +326,8 @@ export default function Sidebar({
             <button
               key={p.id}
               onClick={() => moveConversation(conversationId, p.id)}
-              className="w-full text-left text-[11px] px-2 py-1 rounded hover:bg-black/5 text-black/60 truncate"
+              disabled={actionLoading === `move-conversation-${conversationId}`}
+              className="w-full text-left text-[11px] px-2 py-1 rounded hover:bg-black/5 text-black/60 truncate disabled:opacity-40"
             >
               {p.name}
             </button>
@@ -339,9 +358,10 @@ export default function Sidebar({
             </button>
             <button
               onClick={() => deleteConversation(conversationId)}
-              className="w-full text-left px-3 py-1.5 text-[11px] text-red-500 hover:bg-red-50 transition-colors duration-100"
+              disabled={actionLoading === `delete-conversation-${conversationId}`}
+              className="w-full text-left px-3 py-1.5 text-[11px] text-red-500 hover:bg-red-50 transition-colors duration-100 disabled:opacity-40 disabled:cursor-default"
             >
-              Delete
+              {actionLoading === `delete-conversation-${conversationId}` ? 'Deleting…' : 'Delete'}
             </button>
           </div>
         )}
@@ -362,11 +382,12 @@ export default function Sidebar({
             value={renameValue}
             onChange={(e) => setRenameValue(e.target.value)}
             onKeyDown={(e) => {
-              if (e.key === 'Enter') renameProject(projectId, renameValue);
+              if (e.key === 'Enter' && !actionLoading) renameProject(projectId, renameValue);
               if (e.key === 'Escape') { setRenamingId(null); setKebabProjectId(null); }
             }}
-            onBlur={() => renameProject(projectId, renameValue)}
-            className="w-full text-[11px] rounded-md px-2 py-1 border border-black/10 outline-none focus:border-black/25 bg-white"
+            onBlur={() => { if (!actionLoading) renameProject(projectId, renameValue); }}
+            disabled={actionLoading === `rename-project-${projectId}`}
+            className="w-full text-[11px] rounded-md px-2 py-1 border border-black/10 outline-none focus:border-black/25 bg-white disabled:opacity-40"
             placeholder="Rename…"
           />
         </div>
@@ -389,9 +410,10 @@ export default function Sidebar({
             </button>
             <button
               onClick={() => deleteProject(projectId)}
-              className="w-full text-left px-3 py-1.5 text-[11px] text-red-500 hover:bg-red-50 transition-colors duration-100"
+              disabled={actionLoading === `delete-project-${projectId}`}
+              className="w-full text-left px-3 py-1.5 text-[11px] text-red-500 hover:bg-red-50 transition-colors duration-100 disabled:opacity-40 disabled:cursor-default"
             >
-              Delete
+              {actionLoading === `delete-project-${projectId}` ? 'Deleting…' : 'Delete'}
             </button>
           </div>
         )}
@@ -432,10 +454,13 @@ export default function Sidebar({
       <div className="px-3">
         <button
           onClick={handleNewChat}
-          className="w-full flex items-center gap-1 px-2 py-1 rounded-md text-xs text-black/65 hover-gate:text-black active:scale-[0.97] transition-all duration-150"
+          disabled={actionLoading === 'new-chat'}
+          className="w-full flex items-center gap-1 px-2 py-1 rounded-md text-xs text-black/65 hover-gate:text-black active:scale-[0.97] transition-all duration-150 disabled:opacity-40 disabled:cursor-default disabled:active:scale-100"
         >
-          <span className="material-symbols-outlined text-[13px]">add</span>
-          New chat
+          <span className={`material-symbols-outlined text-[13px] ${actionLoading === 'new-chat' ? 'animate-spin' : ''}`}>
+            {actionLoading === 'new-chat' ? 'progress_activity' : 'add'}
+          </span>
+          {actionLoading === 'new-chat' ? 'Creating…' : 'New chat'}
         </button>
       </div>
 
@@ -517,11 +542,12 @@ export default function Sidebar({
                         value={newProjectName}
                         onChange={(e) => setNewProjectName(e.target.value)}
                         onKeyDown={(e) => {
-                          if (e.key === 'Enter') createProject();
+                          if (e.key === 'Enter' && !actionLoading) createProject();
                           if (e.key === 'Escape') { setCreatingProject(false); setNewProjectName(''); }
                         }}
-                        onBlur={() => { if (newProjectName.trim()) createProject(); else { setCreatingProject(false); setNewProjectName(''); } }}
-                        className="w-full text-[11px] rounded-md px-2 py-1 border border-black/10 outline-none focus:border-black/25 bg-white"
+                        onBlur={() => { if (newProjectName.trim() && !actionLoading) createProject(); else { setCreatingProject(false); setNewProjectName(''); } }}
+                        disabled={actionLoading === 'create-project'}
+                        className="w-full text-[11px] rounded-md px-2 py-1 border border-black/10 outline-none focus:border-black/25 bg-white disabled:opacity-40"
                         placeholder="Project name…"
                       />
                     </div>

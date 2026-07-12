@@ -81,6 +81,7 @@ export default function GeneratePage() {
   const [batchSize, setBatchSize] = useState(1);
   const [images, setImages] = useState([]);
   const [loading, setLoading] = useState(false);
+  const [batchProgress, setBatchProgress] = useState(null); // { current: number, total: number } | null
   const [inspirationFile, setInspirationFile] = useState(null);
   const [inspirationPreview, setInspirationPreview] = useState(null);
   const [analyzing, setAnalyzing] = useState(false);
@@ -204,6 +205,7 @@ export default function GeneratePage() {
       }
 
       /* Step 2: generate batch */
+      setBatchProgress({ current: 0, total: batchSize });
       const requests = Array.from({ length: batchSize }, () =>
         fetch('/api/generate', {
           method: 'POST',
@@ -222,10 +224,13 @@ export default function GeneratePage() {
             return img.base64 || img.image || img.url;
           }
           return null;
+        }).finally(() => {
+          setBatchProgress(prev => prev ? { ...prev, current: prev.current + 1 } : null);
         })
       );
 
       const results = await Promise.allSettled(requests);
+      setBatchProgress(null);
       const successful = results
         .filter((r) => r.status === 'fulfilled' && r.value)
         .map((r) => r.value);
@@ -422,7 +427,7 @@ export default function GeneratePage() {
                 disabled={!prompt.trim() || loading || analyzing}
                 className="w-full py-2.5 rounded-xl bg-black text-white text-sm font-medium active:scale-[0.99] transition-all duration-150 disabled:opacity-25 disabled:cursor-not-allowed hover:bg-black/85"
               >
-                {analyzing ? 'Analyzing inspiration…' : loading ? `Generating ${batchSize > 1 ? `${batchSize} images…` : '…'}` : 'Generate'}
+                {analyzing ? 'Analyzing inspiration…' : loading ? (batchProgress ? `Generating ${batchProgress.current}/${batchProgress.total}…` : `Generating ${batchSize > 1 ? `${batchSize} images…` : '…'}`) : 'Generate'}
               </button>
             </form>
 
@@ -435,6 +440,20 @@ export default function GeneratePage() {
                   <span className="animate-blink size-1.5 rounded-full bg-black/25" style={{ animationDelay: '0.4s' }} />
                 </div>
                 <span>Analyzing style reference image with MiniMax M3…</span>
+              </div>
+            )}
+
+            {/* ── Batch generation progress ──────────────────────── */}
+            {batchProgress && batchProgress.total > 1 && (
+              <div className="mt-4 px-3 py-2.5 rounded-lg bg-black/[0.03] border border-black/8 text-[11px] text-black/50 flex items-center gap-2">
+                <span className="material-symbols-outlined text-[14px] animate-spin shrink-0">progress_activity</span>
+                <span className="flex-1">Generated {batchProgress.current} of {batchProgress.total}</span>
+                <div className="w-20 h-1.5 rounded-full bg-black/8 overflow-hidden flex-shrink-0">
+                  <div
+                    className="h-full rounded-full bg-black/30 transition-all duration-300"
+                    style={{ width: `${(batchProgress.current / batchProgress.total) * 100}%` }}
+                  />
+                </div>
               </div>
             )}
 

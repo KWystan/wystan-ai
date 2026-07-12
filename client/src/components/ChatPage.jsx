@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
+import { useParams } from 'react-router-dom';
 import Markdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import { supabase } from '../lib/supabase.js';
@@ -240,7 +240,7 @@ function renderMessageText(text) {
           const isInline = !className;
           if (isInline) {
             return (
-              <code className="bg-black/5 border border-black/8 rounded px-1.5 py-0.5 text-[13px] font-mono text-black/70" {...props}>
+              <code className="bg-black/5 border border-black/8 rounded px-1.5 py-0.5 text-[13px] font-mono text-black/70 whitespace-nowrap" {...props}>
                 {children}
               </code>
             );
@@ -285,6 +285,18 @@ function renderMessageText(text) {
                className="underline text-black/60 hover:text-black transition-colors duration-150">
               {children}
             </a>
+          );
+        },
+        img({ src, alt }) {
+          if (!src) return null;
+          return (
+            <img
+              src={src}
+              alt={alt || ''}
+              className="w-full rounded-lg border border-black/8 my-2 cursor-pointer hover:opacity-90 transition-opacity duration-150"
+              onClick={() => setLightboxUrl(src)}
+              onError={(e) => { e.target.style.display = 'none'; }}
+            />
           );
         },
       }}
@@ -362,18 +374,64 @@ function buildApiContent(text, isMultimodal, attachedFiles) {
 /* Extract just the text from a possibly-array user message (for editing).
    When editing a multimodal/PDF message we only recover the text portion. */
 function userTextFromContent(content) {
-  if (Array.isArray(content)) {
-    return content.filter((p) => p.type === 'text').map((p) => p.text).join('\n');
-  }
-  return content;
+  const text = Array.isArray(content)
+    ? content.filter((p) => p.type === 'text').map((p) => p.text).join('\n')
+    : content;
+  return stripFileRefs(text || '');
 }
 
 /* Render user bubble text — images are handled separately above the bubble. */
 function renderUserContent(content) {
-  if (Array.isArray(content)) {
-    return content.filter((p) => p.type === 'text').map((p) => p.text).join('\n');
-  }
-  return content;
+  const text = Array.isArray(content)
+    ? content.filter((p) => p.type === 'text').map((p) => p.text).join('\n')
+    : content;
+  return stripFileRefs(text || '');
+}
+
+/* ── Extract file reference markers from user message content ── */
+function extractFileRefs(content) {
+  if (!content) return [];
+  const text = typeof content === 'string' ? content
+    : Array.isArray(content)
+      ? content.filter((p) => p.type === 'text').map((p) => p.text).join('\n')
+      : '';
+
+  const refs = [];
+  const refRe = /\[📎 ([^\]]+)\]/g;
+  let m;
+  while ((m = refRe.exec(text)) !== null) refs.push({ filename: m[1], group: 'file' });
+  const imgRe = /\[Attached image: ([^\]]+)\]/g;
+  while ((m = imgRe.exec(text)) !== null) refs.push({ filename: m[1], group: 'image' });
+  return refs;
+}
+
+/* ── Strip file reference markers from display text ────────── */
+function stripFileRefs(text) {
+  if (!text) return text;
+  return text
+    .replace(/\[📎 ([^\]]+)\]\n?/g, '')
+    .replace(/\[Attached image: ([^\]]+)\]\n?/g, '')
+    .replace(/\n{3,}/g, '\n\n')
+    .trim();
+}
+
+/* ── Pick a Material Symbols icon for a given filename ──────── */
+function iconForFilename(filename) {
+  const ext = filename?.split('.').pop()?.toLowerCase();
+  if (!ext) return 'description';
+  const image = ['png','jpg','jpeg','gif','webp','svg','bmp'];
+  const pdf = ['pdf'];
+  const doc = ['docx','doc'];
+  const slide = ['pptx','ppt'];
+  const table = ['xlsx','xls','csv','tsv','ods'];
+  const code = ['js','jsx','ts','tsx','py','rb','java','c','cpp','cs','go','rs','swift','kt','php','html','css','scss','less','sql','sh','bash','yaml','yml','xml','json','md','r'];
+  if (image.includes(ext)) return 'image';
+  if (pdf.includes(ext)) return 'picture_as_pdf';
+  if (doc.includes(ext)) return 'description';
+  if (slide.includes(ext)) return 'slideshow';
+  if (table.includes(ext)) return 'table_chart';
+  if (code.includes(ext)) return 'code';
+  return 'description';
 }
 
 /* ── Timeout wrapper for hanging auth calls ─────────────────── */
@@ -413,6 +471,9 @@ export default function ChatPage() {
   const [authError, setAuthError] = useState(null);
   const [authSuccessMsg, setAuthSuccessMsg] = useState(null);
   const [conversationRefetchKey, setConversationRefetchKey] = useState(0);
+  const [loadingMessages, setLoadingMessages] = useState(false);
+  const [loadingPhase, setLoadingPhase] = useState(null); // 'searching' | 'generating' | null
+  const [uploadProgress, setUploadProgress] = useState(null); // { current: number, total: number } | null
   const messagesEndRef = useRef(null);
   const textareaRef = useRef(null);
   const abortRef = useRef(null);
@@ -421,7 +482,6 @@ export default function ChatPage() {
   const pasteLockRef = useRef(false);
   const visibleConversationRef = useRef(null); // which conversation the user is viewing
   const { conversationId: urlConversationId } = useParams();
-  const navigate = useNavigate();
   /* ── Load conversation from URL param ──────────────────── */
   useEffect(() => {
     if (!urlConversationId) return;
@@ -435,6 +495,7 @@ export default function ChatPage() {
     setIsLoading(false);
     setSidebarOpen(false);
     setAttachedFiles([]);
+    setLoadingMessages(true);
 
     supabase
       .from('messages')
@@ -443,12 +504,14 @@ export default function ChatPage() {
       .order('created_at', { ascending: true })
       .then(({ data, error }) => {
         if (cancelled) return;
+        setLoadingMessages(false);
         if (!error && data && data.length > 0) {
           setMessages(data);
         }
       })
       .catch((err) => {
         if (cancelled) return;
+        setLoadingMessages(false);
         console.error('Failed to load messages:', err);
         setError('Failed to load messages: ' + err.message);
       });
@@ -556,8 +619,70 @@ export default function ChatPage() {
 
     /* ── Mode dispatch: generate, search, or normal ────── */
     if (activeMode === 'generate') {
+      const promptText = text;
       setActiveMode(null);
-      navigate('/generate', { state: text ? { initialPrompt: text } : undefined });
+
+      /* Add user message with their prompt */
+      const userMsg = { role: 'user', content: promptText };
+      setMessages((prev) => [...prev, userMsg]);
+      setInput('');
+      setIsLoading(true);
+      setError(null);
+
+      try {
+        setLoadingPhase('generating');
+        const genRes = await fetch('/api/generate', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ prompt: promptText, width: 1024, height: 1024, steps: 4 }),
+        });
+
+        if (!genRes.ok) {
+          const errData = await genRes.json().catch(() => ({}));
+          throw new Error(errData.error || 'Image generation failed');
+        }
+
+        const genData = await genRes.json();
+        const artifacts = Array.isArray(genData) ? genData : genData.artifacts || genData.data || [];
+
+        if (artifacts.length === 0) {
+          throw new Error('No image was generated. Please try again.');
+        }
+
+        /* Store generated images as data URLs alongside a text summary */
+        const imageDataUrls = artifacts
+          .map((img) => {
+            const src = img.base64 || img.image || img.url;
+            if (!src) return null;
+            return src.startsWith('data:') ? src : `data:image/png;base64,${src}`;
+          })
+          .filter(Boolean);
+
+        setMessages((prev) => [...prev, { role: 'assistant', content: '', generatedImages: imageDataUrls }]);
+
+        /* ── Save to Supabase ────────────────────────────── */
+        if (effectiveConversationId) {
+          try {
+            await supabase.from('messages').insert([
+              { conversation_id: effectiveConversationId, role: 'user', content: promptText },
+              { conversation_id: effectiveConversationId, role: 'assistant', content: `![Generated image](${imageDataUrls[0] || ''})` },
+            ]);
+            await supabase
+              .from('conversations')
+              .update({ updated_at: new Date().toISOString() })
+              .eq('id', effectiveConversationId);
+            setConversationRefetchKey((k) => k + 1);
+          } catch (err) {
+            console.error('Failed to save generated messages:', err);
+          }
+        }
+      } catch (err) {
+        setError(err.message);
+        setMessages((prev) => [...prev, { role: 'assistant', content: `Image generation failed: ${err.message}` }]);
+      } finally {
+        setLoadingPhase(null);
+        setIsLoading(false);
+      }
       return;
     }
 
@@ -568,7 +693,7 @@ export default function ChatPage() {
       setActiveMode(null);
     }
 
-    const userMsg = { role: 'user', content: buildUserContent(modeText, isMultimodal, attachedFiles) };
+    const userMsg = { role: 'user', content: buildUserContent(modeText, isMultimodal, attachedFiles), files: attachedFiles };
     let updated = [...messages, userMsg];
     setMessages(updated);
     setInput('');
@@ -578,6 +703,7 @@ export default function ChatPage() {
 
     /* ── Web search (if /search mode) ─────────────────────── */
     if (searchText) {
+      setLoadingPhase('searching');
       try {
         const searchRes = await fetch('/api/search', {
           method: 'POST',
@@ -602,6 +728,7 @@ export default function ChatPage() {
       } catch (err) {
         console.error('Web search failed:', err);
       }
+      setLoadingPhase(null);
     }
 
     try {
@@ -702,7 +829,7 @@ export default function ChatPage() {
       setIsLoading(false);
       abortRef.current = null;
     }
-  }, [input, isLoading, messages, selectedModel, attachedFiles, user, currentConversationId, activeMode, navigate]);
+  }, [input, isLoading, messages, selectedModel, attachedFiles, user, currentConversationId, activeMode]);
 
   /* ── Keyboard: Enter to send, Shift+Enter newline ─────────── */
   const handleKeyDown = (e) => {
@@ -726,13 +853,12 @@ export default function ChatPage() {
   const handleSelectConversation = useCallback(async (conversationId) => {
     setCurrentConversationId(conversationId);
     visibleConversationRef.current = conversationId;
-    // Don't abort a running stream — it keeps going in the background
-    // and saves to Supabase when done
     setMessages([]);
     setError(null);
     setIsLoading(false);
     setSidebarOpen(false);
     setAttachedFiles([]);
+    setLoadingMessages(true);
 
     /* Load saved messages from Supabase */
     try {
@@ -741,10 +867,12 @@ export default function ChatPage() {
         .select('role, content')
         .eq('conversation_id', conversationId)
         .order('created_at', { ascending: true });
+      setLoadingMessages(false);
       if (!error && data && data.length > 0) {
         setMessages(data);
       }
     } catch (err) {
+      setLoadingMessages(false);
       console.error('Failed to load messages:', err);
       setError('Failed to load messages: ' + err.message);
     }
@@ -798,6 +926,7 @@ export default function ChatPage() {
 
     setIsUploading(true);
     setError(null);
+    setUploadProgress({ current: 0, total: files.length });
     const results = [];
 
     for (const file of files) {
@@ -821,6 +950,7 @@ export default function ChatPage() {
           ? `"${file.name}" is too large. Maximum file size is 10 MB.`
           : `Failed to upload "${file.name}": ${err.message}`);
       }
+      setUploadProgress(prev => prev ? { ...prev, current: prev.current + 1 } : null);
     }
 
     if (results.length > 0) {
@@ -831,6 +961,7 @@ export default function ChatPage() {
     if (fileInputRef.current) {
       fileInputRef.current.value = '';
     }
+    setUploadProgress(null);
     setIsUploading(false);
   };
 
@@ -904,6 +1035,7 @@ export default function ChatPage() {
 
     setIsUploading(true);
     setError(null);
+    setUploadProgress({ current: 0, total: files.length });
     const results = [];
 
     for (const file of files) {
@@ -927,12 +1059,14 @@ export default function ChatPage() {
           ? `"${file.name}" is too large. Maximum file size is 10 MB.`
           : `Failed to upload "${file.name}": ${err.message}`);
       }
+      setUploadProgress(prev => prev ? { ...prev, current: prev.current + 1 } : null);
     }
 
     if (results.length > 0) {
       setAttachedFiles((prev) => [...prev, ...results]);
     }
 
+    setUploadProgress(null);
     setIsUploading(false);
   };
 
@@ -1042,9 +1176,47 @@ export default function ChatPage() {
         </header>
 
         {/* ── Messages ──────────────────────────────────────────── */}
-        <main className="flex-1 overflow-y-auto">
+        <main className="flex-1 overflow-y-auto overflow-x-hidden">
           <div className="max-w-3xl mx-auto px-4 py-6 w-full">
             {messages.length === 0 ? (
+              loadingMessages ? (
+                /* ── Loading skeleton ──────────────────────────────── */
+                <div className="max-w-2xl mx-auto pt-16 space-y-5">
+                  {/* Assistant skeleton */}
+                  <div className="flex justify-start">
+                    <div className="max-w-[75%] flex gap-2.5">
+                      <div className="w-7 h-7 rounded-lg flex-shrink-0 mt-1 bg-black/5 animate-pulse" />
+                      <div className="flex-1 space-y-2.5 py-1">
+                        <div className="h-3.5 bg-black/5 rounded-full w-3/4 animate-pulse" />
+                        <div className="h-3.5 bg-black/5 rounded-full w-1/2 animate-pulse" />
+                      </div>
+                    </div>
+                  </div>
+                  {/* User skeleton */}
+                  <div className="flex justify-end">
+                    <div className="max-w-[60%]">
+                      <div className="h-10 bg-black/8 rounded-2xl rounded-br-md animate-pulse" />
+                    </div>
+                  </div>
+                  {/* Assistant skeleton */}
+                  <div className="flex justify-start">
+                    <div className="max-w-[75%] flex gap-2.5">
+                      <div className="w-7 h-7 rounded-lg flex-shrink-0 mt-1 bg-black/5 animate-pulse" />
+                      <div className="flex-1 space-y-2.5 py-1">
+                        <div className="h-3.5 bg-black/5 rounded-full w-5/6 animate-pulse" />
+                        <div className="h-3.5 bg-black/5 rounded-full w-2/3 animate-pulse" />
+                        <div className="h-3.5 bg-black/5 rounded-full w-1/3 animate-pulse" />
+                      </div>
+                    </div>
+                  </div>
+                  {/* User skeleton */}
+                  <div className="flex justify-end">
+                    <div className="max-w-[55%]">
+                      <div className="h-12 bg-black/8 rounded-2xl rounded-br-md animate-pulse" />
+                    </div>
+                  </div>
+                </div>
+              ) : (
               /* ── Welcome screen ─────────────────────────────────── */
               <div
                 className="flex-1 flex flex-col items-center justify-center min-h-[70vh] text-center"
@@ -1071,7 +1243,7 @@ export default function ChatPage() {
                   ))}
                 </div>
               </div>
-            ) : (
+            )) : (
               /* ── Message list ───────────────────────────────────── */
               <div className="space-y-4">
                 {messages.map((msg, i) => {
@@ -1113,6 +1285,35 @@ export default function ChatPage() {
                               ))}
                             </div>
                           )}
+
+                          {/* File chips — same design as input area, above the dark bubble */}
+                          {(() => {
+                            const hasImageThumbnails = Array.isArray(msg.content) && msg.content.some(p => p.type === 'image_url');
+                            let chips = msg.files; // rich metadata from current session
+                            if (!chips || chips.length === 0) {
+                              const refs = extractFileRefs(msg.content);
+                              if (refs.length > 0) chips = refs;
+                            }
+                            if (hasImageThumbnails) chips = chips?.filter(f => f.group !== 'image');
+                            if (!chips || chips.length === 0) return null;
+
+                            return (
+                              <div className="flex flex-wrap gap-1.5 mb-2 justify-end">
+                                {chips.map((ref, i) => (
+                                  <div
+                                    key={i}
+                                    className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg bg-black/5 border border-black/10 text-xs text-black/60"
+                                  >
+                                    <span className="material-symbols-outlined text-[14px] shrink-0">
+                                      {iconForFilename(ref.filename)}
+                                    </span>
+                                    <span className="truncate max-w-[200px]">{ref.filename}</span>
+                                  </div>
+                                ))}
+                              </div>
+                            );
+                          })()}
+
                           <div className="bg-black text-white rounded-2xl rounded-br-md px-4 py-3 pr-10 text-sm leading-relaxed whitespace-pre-wrap">
                             {renderUserContent(msg.content)}
                           </div>
@@ -1129,13 +1330,30 @@ export default function ChatPage() {
                         </div>
                       )) : msg.content ? (
                         /* ── Assistant message ───────────────────────── */
-                        <div className="max-w-[80%] flex gap-2.5">
-                          <div className="w-7 h-7 rounded-lg flex-shrink-0 mt-0.5 overflow-hidden">
+                        <div className={`${msg.generatedImages?.length ? 'max-w-[90%] sm:max-w-[500px]' : 'max-w-[80%]'} flex gap-2.5`}>
+                          <div className="w-7 h-7 rounded-lg flex-shrink-0 mt-0.5 overflow-hidden min-w-0">
                             <img src={aiSparkSvg} alt="" className="w-full h-full object-cover" />
                           </div>
-                          <div className="relative group">
-                            <div className="border border-black/8 rounded-2xl rounded-bl-md px-4 pb-8 pt-3 text-sm leading-relaxed text-black/70">
-                              {renderMessageText(msg.content)}
+                          <div className="relative group min-w-0 overflow-x-auto">
+                            <div className={`border border-black/8 rounded-2xl rounded-bl-md text-sm leading-relaxed text-black/70 ${msg.generatedImages?.length ? 'pb-1' : 'px-4 pb-8 pt-3'}`}>
+                              {msg.generatedImages?.length > 0 && (
+                                <div className="space-y-2">
+                                  {msg.generatedImages.map((url, i) => (
+                                    <img
+                                      key={i}
+                                      src={url}
+                                      alt={`Generated ${i + 1}`}
+                                      className="w-full rounded-lg border border-black/8 cursor-pointer hover:opacity-90 transition-opacity duration-150"
+                                      onClick={() => setLightboxUrl(url)}
+                                    />
+                                  ))}
+                                </div>
+                              )}
+                              {msg.content && (
+                                <div className="whitespace-nowrap min-w-0" style={{ overflowX: 'auto' }}>
+                                  {renderMessageText(msg.content)}
+                                </div>
+                              )}
                             </div>
                             {/* Copy — bottom-right inside bubble, hover only, finished only */}
                             {msg.content && !isStreaming && (
@@ -1163,7 +1381,11 @@ export default function ChatPage() {
                       <span className="w-1.5 h-1.5 rounded-full bg-black/30 animate-bounce" style={{ animationDelay: '0.15s' }} />
                       <span className="w-1.5 h-1.5 rounded-full bg-black/30 animate-bounce" style={{ animationDelay: '0.3s' }} />
                     </div>
-                    <span className="text-xs text-black/40">Thinking</span>
+                    <span className="text-xs text-black/40">
+                      {loadingPhase === 'searching' ? 'Searching the web…'
+                        : loadingPhase === 'generating' ? 'Generating image…'
+                        : 'Thinking'}
+                    </span>
                   </div>
                 )}
               </div>
@@ -1214,6 +1436,19 @@ export default function ChatPage() {
                     </button>
                   </div>
                 ))}
+              </div>
+            )}
+            {/* Upload progress */}
+            {uploadProgress && (
+              <div className="mb-2 flex items-center gap-2 px-3 py-1.5 rounded-lg bg-black/[0.03] border border-black/8 text-[11px] text-black/50">
+                <span className="material-symbols-outlined text-[14px] animate-spin shrink-0">progress_activity</span>
+                <span className="flex-1">Uploading {uploadProgress.current + 1} of {uploadProgress.total}…</span>
+                <div className="w-16 h-1 rounded-full bg-black/8 overflow-hidden flex-shrink-0">
+                  <div
+                    className="h-full rounded-full bg-black/30 transition-all duration-300"
+                    style={{ width: `${((uploadProgress.current + 1) / uploadProgress.total) * 100}%` }}
+                  />
+                </div>
               </div>
             )}
             <div className="flex items-center gap-2">
@@ -1287,7 +1522,7 @@ export default function ChatPage() {
                   rows={1}
                   disabled={isLoading}
                   className={`w-full bg-white text-black text-sm rounded-xl px-4 py-2.5 resize-none overflow-y-auto hide-scrollbar outline-none placeholder:text-black/30 border border-black/10 focus:border-black/25 transition-all duration-150 disabled:opacity-50 leading-relaxed ${
-                    activeMode ? 'pl-28' : 'pl-12'
+                    activeMode ? 'pl-36' : 'pl-12'
                   }`}
                 />
                 {input.length > 8000 && (

@@ -297,7 +297,8 @@ Guidelines:
 - Use emojis sparingly and naturally where appropriate
 - If unsure about something, say so honestly
 - Keep responses focused and useful — avoid being overly verbose
-- Adapt your tone to match the user's style`;
+- Adapt your tone to match the user's style
+- Code, commands, flags, and technical terms with dashes must ALWAYS be wrapped in markdown backticks (\`like this\`). For example: \`--flag-name\`, \`npm install\`, \`-webkit-transform\`. This prevents the browser from misreading dashes as line-break opportunities. Never leave backtick-worthy terms unformatted.`;
 
 /* ── Relay an OpenAI-style SSE stream to the client ──────────
  *  Reads upstream `data: {...}` chunks (with choices[0].delta.content)
