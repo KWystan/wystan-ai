@@ -299,6 +299,38 @@ function renderMessageText(text) {
             />
           );
         },
+        table({ children }) {
+          return (
+            <div className="overflow-x-auto my-3">
+              <table className="w-full border-collapse border border-black/15 text-[13px] leading-relaxed">
+                {children}
+              </table>
+            </div>
+          );
+        },
+        thead({ children }) {
+          return <thead className="bg-black/5">{children}</thead>;
+        },
+        tbody({ children }) {
+          return <tbody>{children}</tbody>;
+        },
+        tr({ children }) {
+          return <tr className="border-b border-black/10 last:border-b-0">{children}</tr>;
+        },
+        th({ children }) {
+          return (
+            <th className="border border-black/15 px-3 py-2 text-left font-semibold text-black/80 text-[12px] uppercase tracking-wider">
+              {children}
+            </th>
+          );
+        },
+        td({ children }) {
+          return (
+            <td className="border border-black/15 px-3 py-1.5 text-black/70 align-top">
+              {children}
+            </td>
+          );
+        },
       }}
     >
       {text}
