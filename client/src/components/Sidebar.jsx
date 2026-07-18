@@ -427,9 +427,13 @@ export default function Sidebar({
           disabled={actionLoading === 'new-chat'}
           className="w-full flex items-center gap-1 px-2 py-1 rounded-md text-xs text-black/65 hover-gate:text-black active:scale-[0.97] transition-all duration-150 disabled:opacity-40 disabled:cursor-default disabled:active:scale-100"
         >
-          <span className={`material-symbols-outlined text-[13px] ${actionLoading === 'new-chat' ? 'animate-spin' : ''}`}>
-            {actionLoading === 'new-chat' ? 'progress_activity' : 'add'}
-          </span>
+          {actionLoading === 'new-chat' ? (
+            <span className="material-symbols-outlined text-[13px] animate-spin">progress_activity</span>
+          ) : (
+            <svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" className="shrink-0">
+              <path fill="none" stroke="currentColor" stroke-linecap="round" stroke-width="2.5" d="M12 5v14M5 12h14" />
+            </svg>
+          )}
           {actionLoading === 'new-chat' ? 'Creating…' : 'New chat'}
         </button>
       </div>
@@ -440,7 +444,7 @@ export default function Sidebar({
           to="/generate"
           className="w-full flex items-center gap-1 px-2 py-1 rounded-md text-xs text-black/65 hover-gate:text-black active:scale-[0.97] transition-all duration-150"
         >
-          <svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 20 20" className="shrink-0">
+          <svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 20 20" className="shrink-0 mr-px">
             <path fill="currentColor" d="M17.125 6.17L15.079.535c-.151-.416-.595-.637-.989-.492L.492 5.006c-.394.144-.593.597-.441 1.013l2.156 5.941V8.777c0-1.438 1.148-2.607 2.56-2.607H8.36l4.285-3.008l2.479 3.008zM19.238 8H4.767a.76.76 0 0 0-.762.777v9.42c.001.444.343.803.762.803h14.471c.42 0 .762-.359.762-.803v-9.42A.76.76 0 0 0 19.238 8M18 17H6v-2l1.984-4.018l2.768 3.436l2.598-2.662l3.338-1.205L18 14z" />
           </svg>
           Generate
