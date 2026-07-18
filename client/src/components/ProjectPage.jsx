@@ -562,10 +562,10 @@ export default function ProjectPage() {
           <div className="px-4 h-12 flex items-center">
             <button
               onClick={() => setSidebarOpen(true)}
-              className="md:hidden w-8 h-8 rounded-lg border border-black/12 flex items-center justify-center text-black hover-gate:border-black/35 hover-gate:text-black active:scale-[0.97] transition-all duration-150 [backface-visibility:hidden]"
+              className="md:hidden w-9 h-9 rounded-lg flex items-center justify-center text-black hover-gate:text-black active:scale-[0.97] transition-all duration-150 [backface-visibility:hidden]"
               aria-label="Open sidebar"
             >
-              <span className="material-symbols-outlined text-[18px]">menu</span>
+              <svg xmlns="http://www.w3.org/2000/svg" width="1em" height="1em" viewBox="0 0 24 24" className="text-[20px]"><path d="M0 0h24v24H0z" fill="none" /><path fill="currentColor" d="M2 5.995c0-.55.446-.995.995-.995h8.01a.995.995 0 0 1 0 1.99h-8.01A.995.995 0 0 1 2 5.995M2 12c0-.55.446-.995.995-.995h18.01a.995.995 0 1 1 0 1.99H2.995A.995.995 0 0 1 2 12m.995 5.01a.995.995 0 0 0 0 1.99h12.01a.995.995 0 0 0 0-1.99z" /></svg>
             </button>
           </div>
         </header>

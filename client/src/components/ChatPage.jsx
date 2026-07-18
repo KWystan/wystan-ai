@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
+import { createPortal } from 'react-dom';
 import { useParams } from 'react-router-dom';
 import Markdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
@@ -469,6 +470,8 @@ export default function ChatPage() {
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [selectedModel, setSelectedModel] = useState(MODELS[0].id);
   const [modelDropdownOpen, setModelDropdownOpen] = useState(false);
+  const [modelDropdownPos, setModelDropdownPos] = useState({ top: 0, left: 0 });
+  const modelButtonRef = useRef(null);
   const [copiedIdx, setCopiedIdx] = useState(null);
   const [attachedFiles, setAttachedFiles] = useState([]);
   const [lightboxUrl, setLightboxUrl] = useState(null);
@@ -1167,47 +1170,26 @@ export default function ChatPage() {
             {/* Mobile sidebar toggle */}
             <button
               onClick={() => setSidebarOpen(true)}
-              className="md:hidden w-8 h-8 rounded-lg border border-black/12 flex items-center justify-center text-black hover-gate:border-black/35 hover-gate:text-black active:scale-[0.97] transition-all duration-150"
+              className="md:hidden w-9 h-9 rounded-lg flex items-center justify-center text-black hover-gate:text-black active:scale-[0.97] transition-all duration-150"
               aria-label="Open sidebar"
             >
-              <span className="material-symbols-outlined text-[18px]">menu</span>
+              <svg xmlns="http://www.w3.org/2000/svg" width="1em" height="1em" viewBox="0 0 24 24" className="text-[20px]"><path d="M0 0h24v24H0z" fill="none" /><path fill="currentColor" d="M2 5.995c0-.55.446-.995.995-.995h8.01a.995.995 0 0 1 0 1.99h-8.01A.995.995 0 0 1 2 5.995M2 12c0-.55.446-.995.995-.995h18.01a.995.995 0 1 1 0 1.99H2.995A.995.995 0 0 1 2 12m.995 5.01a.995.995 0 0 0 0 1.99h12.01a.995.995 0 0 0 0-1.99z" /></svg>
             </button>
-            {/* ── Model dropdown ────────────────────────────────── */}
-            <div className="relative">
-              <button
-                onClick={() => setModelDropdownOpen(!modelDropdownOpen)}
-                className="flex items-center gap-1 text-sm font-medium text-black hover-gate:text-black active:scale-[0.97] transition-all duration-150"
-              >
-                {MODELS.find((m) => m.id === selectedModel)?.name}
-                <span className="material-symbols-outlined text-[14px] text-black">expand_more</span>
-              </button>
-              {modelDropdownOpen && (
-                <>
-                  <div className="fixed inset-0 z-40" onClick={() => setModelDropdownOpen(false)} />
-                  <div
-                    className="absolute top-full left-0 mt-1.5 w-52 bg-white border border-black/10 rounded-xl shadow-lg overflow-hidden z-50"
-                    style={{ animation: `scale-in 0.15s var(--ease-out-expo) both`, transformOrigin: 'top left' }}
-                  >
-                    {MODELS.map((m) => (
-                      <button
-                        key={m.id}
-                        onClick={() => { setSelectedModel(m.id); setModelDropdownOpen(false); }}
-                        className={`w-full text-left px-3.5 py-2.5 text-xs transition-colors duration-150 flex items-center justify-between ${
-                          m.id === selectedModel
-                            ? 'bg-black/5 text-black font-medium'
-                            : 'text-black hover-gate:text-black hover-gate:bg-black/[0.03]'
-                        }`}
-                      >
-                        {m.name}
-                        {m.id === selectedModel && (
-                          <span className="material-symbols-outlined text-[14px] text-black">check</span>
-                        )}
-                      </button>
-                    ))}
-                  </div>
-                </>
-              )}
-            </div>
+            {/* ── Model dropdown trigger ────────────────────────── */}
+            <button
+              ref={modelButtonRef}
+              onClick={() => {
+                if (!modelDropdownOpen && modelButtonRef.current) {
+                  const rect = modelButtonRef.current.getBoundingClientRect();
+                  setModelDropdownPos({ top: rect.bottom + 6, left: rect.left });
+                }
+                setModelDropdownOpen(!modelDropdownOpen);
+              }}
+              className="flex items-center gap-1 text-sm font-medium text-black hover-gate:text-black active:scale-[0.97] transition-all duration-150"
+            >
+              {MODELS.find((m) => m.id === selectedModel)?.name}
+              <span className="material-symbols-outlined text-[14px] text-black">expand_more</span>
+            </button>
 
             <div className="ml-auto flex items-center gap-3">
               {/* ── Save conversation ─────────────────────────────── */}
@@ -1799,6 +1781,35 @@ export default function ChatPage() {
             onClick={(e) => e.stopPropagation()}
           />
         </div>
+      )}
+
+      {/* ── Model dropdown (portal) ─────────────────────────────── */}
+      {modelDropdownOpen && createPortal(
+        <>
+          <div className="fixed inset-0 z-[9999]" onClick={() => setModelDropdownOpen(false)} />
+          <div
+            className="fixed z-[10000] w-52 bg-white border border-black/10 rounded-xl shadow-lg overflow-hidden"
+            style={{ top: modelDropdownPos.top, left: modelDropdownPos.left, animation: 'scale-in 0.15s cubic-bezier(0.16, 1, 0.3, 1) both', transformOrigin: 'top left' }}
+          >
+            {MODELS.map((m) => (
+              <button
+                key={m.id}
+                onClick={() => { setSelectedModel(m.id); setModelDropdownOpen(false); }}
+                className={`w-full text-left px-3.5 py-2.5 text-xs transition-colors duration-150 flex items-center justify-between ${
+                  m.id === selectedModel
+                    ? 'bg-black/5 text-black font-medium'
+                    : 'text-black hover-gate:text-black hover-gate:bg-black/[0.03]'
+                }`}
+              >
+                {m.name}
+                {m.id === selectedModel && (
+                  <span className="material-symbols-outlined text-[14px] text-black">check</span>
+                )}
+              </button>
+            ))}
+          </div>
+        </>,
+        document.body
       )}
     </div>
   );
