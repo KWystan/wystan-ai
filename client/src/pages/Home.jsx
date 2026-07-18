@@ -13,7 +13,7 @@ export default function Home() {
 
   return (
     <div className="min-h-screen flex flex-col items-center justify-center gap-4">
-      <h1 className="font-magazine text-3xl font-semibold text-black">Wystan AI</h1>
+      <h1 className="font-display text-3xl font-semibold text-black">Wystan AI</h1>
       <p className="text-sm text-black/45">{health ? health.message : 'Connecting to server...'}</p>
       <Link
         to="/chat"

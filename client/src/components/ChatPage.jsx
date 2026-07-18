@@ -258,13 +258,13 @@ function renderMessageText(text) {
           return <li className="leading-normal">{children}</li>;
         },
         h1({ children }) {
-          return <h1 className="text-base font-semibold mt-2 mb-0.5">{children}</h1>;
+          return <h1 className="text-lg font-bold text-black/85 mt-2 mb-0.5">{children}</h1>;
         },
         h2({ children }) {
-          return <h2 className="text-[15px] font-semibold mt-2 mb-0.5">{children}</h2>;
+          return <h2 className="text-base font-bold text-black/85 mt-2 mb-0.5">{children}</h2>;
         },
         h3({ children }) {
-          return <h3 className="text-sm font-semibold mt-1.5 mb-0">{children}</h3>;
+          return <h3 className="text-[15px] font-bold text-black/85 mt-1.5 mb-0">{children}</h3>;
         },
         blockquote({ children }) {
           return (
@@ -351,23 +351,18 @@ function buildUserContent(text, isMultimodal, attachedFiles) {
   if (!attachedFiles || attachedFiles.length === 0) return text;
 
   if (isMultimodal) {
-    const content = [{ type: 'text', text }];
+    const content = [];
+    if (text) content.push({ type: 'text', text });
     for (const file of attachedFiles) {
       if (file.group === 'image') {
         content.push({ type: 'image_url', image_url: { url: file.data } });
-      } else {
-        content[0].text += `\n\n[📎 ${file.filename}]`;
       }
     }
     return content;
   }
 
-  // Text-only model: flat string with references
-  const parts = attachedFiles.map((f) => {
-    if (f.group === 'image') return `[Attached image: ${f.filename}]`;
-    return `[📎 ${f.filename}]`;
-  });
-  return parts.join('\n') + '\n' + text;
+  // Text-only model: just the text — files are shown as chips/thumbnails
+  return text;
 }
 
 /* Build the full API payload content — same structure but includes the
@@ -600,7 +595,7 @@ export default function ChatPage() {
   /* ── Send message with streaming ──────────────────────────── */
   const handleSend = useCallback(async (overrideText) => {
     const text = (overrideText || input).trim();
-    if (!text || isLoading) return;
+    if ((!text && attachedFiles.length === 0) || isLoading) return;
 
     /* ── If logged in and no conversation yet, create one now ────
      *  Also update the title from the user's first message so it
@@ -610,7 +605,7 @@ export default function ChatPage() {
 
     if (user) {
       const titleSuggestion =
-        text.length > 45 ? text.slice(0, 45) + '…' : text;
+        text.length > 45 ? text.slice(0, 45) + '…' : text || (attachedFiles[0]?.filename || 'New chat');
 
       if (!effectiveConversationId) {
         // No conversation yet — create one with the title already set
@@ -769,10 +764,21 @@ export default function ChatPage() {
       const controller = new AbortController();
       abortRef.current = controller;
 
+      /* Build the API payload — replace display content with the
+         full payload that includes actual file text for the LLM. */
+      const apiMessages = [...updated];
+      if (attachedFiles.length > 0) {
+        const lastIdx = apiMessages.length - 1;
+        apiMessages[lastIdx] = {
+          ...apiMessages[lastIdx],
+          content: buildApiContent(modeText, isMultimodal, attachedFiles),
+        };
+      }
+
       const res = await fetch('/api/chat-full', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ messages: updated, model: effectiveModel }),
+        body: JSON.stringify({ messages: apiMessages, model: effectiveModel }),
         signal: controller.signal,
       });
 
@@ -1269,7 +1275,7 @@ export default function ChatPage() {
                 <div className="w-28 h-28 rounded-2xl mb-5 overflow-hidden">
                   <img src={aiSparkSvg} alt="AI Spark" className="w-full h-full object-cover" />
                 </div>
-                <h2 className="font-magazine text-xl font-semibold text-black mb-1.5">
+                <h2 className="font-display text-2xl font-bold text-black mb-1.5">
                   How can I help you?
                 </h2>
                 <p className="text-sm text-black/40 max-w-sm mb-8">
@@ -1358,18 +1364,29 @@ export default function ChatPage() {
                             );
                           })()}
 
-                          <div className="bg-black text-white rounded-2xl rounded-br-md px-4 py-3 pr-10 text-sm leading-relaxed whitespace-pre-wrap [overflow-wrap:anywhere]">
-                            {renderUserContent(msg.content)}
-                          </div>
-                          {/* Edit — bottom-right inside bubble, hover only */}
-                          {!isLoading && isLastUserMsg && (
-                            <button
-                              onClick={() => handleEdit(i)}
-                              className="absolute bottom-1.5 right-1.5 opacity-0 group-hover:opacity-100 w-7 h-7 rounded-md flex items-center justify-center text-white/50 hover-gate:text-white active:scale-[0.92] transition-all duration-150"
-                              aria-label="Edit message"
-                            >
-                              <span className="material-symbols-outlined text-[14px]">edit</span>
-                            </button>
+                          {(() => {
+                            const hasText = (c) => {
+                              if (typeof c === 'string') return c.trim().length > 0;
+                              if (Array.isArray(c)) return c.some(p => p.type === 'text' && p.text.trim().length > 0);
+                              return false;
+                            };
+                            return hasText(msg.content);
+                          })() && (
+                            <>
+                              <div className="bg-black text-white rounded-2xl rounded-br-md px-4 py-3 pr-10 text-sm leading-relaxed whitespace-pre-wrap [overflow-wrap:anywhere]">
+                                {renderUserContent(msg.content)}
+                              </div>
+                              {/* Edit — bottom-right inside bubble, hover only */}
+                              {!isLoading && isLastUserMsg && (
+                                <button
+                                  onClick={() => handleEdit(i)}
+                                  className="absolute bottom-1.5 right-1.5 opacity-0 group-hover:opacity-100 w-7 h-7 rounded-md flex items-center justify-center text-white/50 hover-gate:text-white active:scale-[0.92] transition-all duration-150"
+                                  aria-label="Edit message"
+                                >
+                                  <span className="material-symbols-outlined text-[14px]">edit</span>
+                                </button>
+                              )}
+                            </>
                           )}
                         </div>
                       )) : msg.content ? (
@@ -1394,7 +1411,7 @@ export default function ChatPage() {
                                 </div>
                               )}
                               {msg.content && (
-                                <div className="[overflow-wrap:anywhere] min-w-0">
+                                <div className="[overflow-wrap:anywhere] min-w-0 font-serif">
                                   {renderMessageText(msg.content)}
                                 </div>
                               )}
@@ -1585,7 +1602,7 @@ export default function ChatPage() {
               </div>
               <button
                 onClick={() => handleSend()}
-                disabled={!input.trim() || isLoading}
+                disabled={(!input.trim() && attachedFiles.length === 0) || isLoading}
                 className="w-10 h-10 rounded-xl bg-black text-white flex items-center justify-center flex-shrink-0 active:scale-[0.92] transition-all duration-150 disabled:opacity-25 disabled:cursor-not-allowed hover:bg-black/85"
                 aria-label="Send message"
               >

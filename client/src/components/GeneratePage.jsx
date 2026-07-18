@@ -324,7 +324,7 @@ export default function GeneratePage() {
         {/* ── Main content ─────────────────────────────────────── */}
         <main className="flex-1 overflow-y-auto">
           <div className="max-w-2xl mx-auto px-4 py-8 w-full">
-            <h1 className="font-magazine text-xl font-semibold text-black mb-1">
+            <h1 className="font-display text-2xl font-bold text-black mb-1.5">
               Image Generation
             </h1>
             <p className="text-sm text-black/40 mb-6">

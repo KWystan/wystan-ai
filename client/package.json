@@ -10,7 +10,9 @@
     "preview": "vite preview"
   },
   "dependencies": {
+    "@fontsource/source-serif-4": "^5.2.9",
     "@supabase/supabase-js": "^2.110.2",
+    "geist": "^1.7.2",
     "react": "^19.2.7",
     "react-dom": "^19.2.7",
     "react-icons": "^5.7.0",

@@ -65,9 +65,9 @@ function renderMessageText(text) {
         ul: ({ children }) => <ul className="my-0.5 pl-4 space-y-0.5">{children}</ul>,
         ol: ({ children }) => <ol className="my-0.5 pl-4 space-y-0.5">{children}</ol>,
         li: ({ children }) => <li className="my-0.5 leading-normal">{children}</li>,
-        h1: ({ children }) => <h1 className="text-lg font-semibold mt-2 mb-1">{children}</h1>,
-        h2: ({ children }) => <h2 className="text-base font-semibold mt-1.5 mb-0.5">{children}</h2>,
-        h3: ({ children }) => <h3 className="text-sm font-semibold mt-1 mb-0.5">{children}</h3>,
+        h1: ({ children }) => <h1 className="text-xl font-bold text-black/85 mt-2 mb-1">{children}</h1>,
+        h2: ({ children }) => <h2 className="text-lg font-bold text-black/85 mt-1.5 mb-0.5">{children}</h2>,
+        h3: ({ children }) => <h3 className="text-base font-bold text-black/85 mt-1 mb-0.5">{children}</h3>,
         blockquote: ({ children }) => (
           <blockquote className="border-l-2 border-black/15 pl-3 my-1 text-black/60 italic">{children}</blockquote>
         ),
@@ -612,7 +612,7 @@ export default function ProjectPage() {
                   <div className="w-14 h-14 rounded-2xl border border-black/10 flex items-center justify-center mb-4">
                     <span className="material-symbols-outlined text-2xl text-black/30">folder</span>
                   </div>
-                  <h2 className="font-magazine text-xl font-semibold text-black mb-1">
+                  <h2 className="font-display text-2xl font-bold text-black mb-1">
                     {project?.name}
                   </h2>
                   <p className="text-sm text-black/40 max-w-sm">
@@ -692,7 +692,7 @@ export default function ProjectPage() {
                                 : ''}
                           </div>
                         ) : (
-                          <div className="[overflow-wrap:anywhere] min-w-0">
+                          <div className="[overflow-wrap:anywhere] min-w-0 font-serif">
                             {msg.content ? (
                               renderMessageText(msg.content)
                             ) : isLoading && i === messages.length - 1 ? (
