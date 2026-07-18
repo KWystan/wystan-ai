@@ -2,14 +2,26 @@
 
 const { Router } = require('express');
 const { supabaseAdmin } = require('../supabase');
+const { createTTLCache } = require('../cache');
 
 const router = Router();
+const convCache = createTTLCache(30_000); // 30s TTL
 
 /* ── List conversations for the authenticated user ──────────────
  *  Query: ?project_id=xxx (optional, filter by project)
- *  Returns: [{ id, title, created_at, updated_at, project_id, user_id }] */
+ *  Returns: [{ id, title, created_at, updated_at, project_id, user_id }]
+ *  Cached 30s per (user_id, project_id) pair. */
 router.get('/', async (req, res) => {
   try {
+    const projectId = req.query.project_id;
+    const cacheKey = `conv:${req.user.id}:${projectId || ''}`;
+
+    const cached = convCache.get(cacheKey);
+    if (cached) {
+      res.set('X-Cache', 'HIT');
+      return res.json(cached);
+    }
+
     let query = supabaseAdmin
       .from('conversations')
       .select('*')
@@ -17,7 +29,6 @@ router.get('/', async (req, res) => {
       .order('updated_at', { ascending: false });
 
     // Optional filter by project_id
-    const projectId = req.query.project_id;
     if (projectId) {
       query = query.eq('project_id', projectId);
     }
@@ -28,6 +39,8 @@ router.get('/', async (req, res) => {
       return res.status(500).json({ error: error.message });
     }
 
+    convCache.set(cacheKey, data || []);
+    res.set('X-Cache', 'MISS');
     return res.json(data || []);
   } catch (err) {
     console.error('List conversations error:', err);
@@ -56,6 +69,8 @@ router.post('/', async (req, res) => {
       return res.status(500).json({ error: error.message });
     }
 
+    // Invalidate cached lists for this user
+    convCache.clearPrefix(`conv:${req.user.id}:`);
     return res.status(201).json(data);
   } catch (err) {
     console.error('Create conversation error:', err);
@@ -84,6 +99,8 @@ router.put('/:id', async (req, res) => {
       return res.status(500).json({ error: error.message });
     }
 
+    // Invalidate cached lists for this user
+    convCache.clearPrefix(`conv:${req.user.id}:`);
     return res.json(data);
   } catch (err) {
     console.error('Update conversation error:', err);
@@ -104,6 +121,8 @@ router.delete('/:id', async (req, res) => {
       return res.status(500).json({ error: error.message });
     }
 
+    // Invalidate cached lists for this user
+    convCache.clearPrefix(`conv:${req.user.id}:`);
     return res.json({ success: true });
   } catch (err) {
     console.error('Delete conversation error:', err);
@@ -184,6 +203,8 @@ router.post('/:id/messages', async (req, res) => {
       .update({ updated_at: new Date().toISOString() })
       .eq('id', req.params.id);
 
+    // Invalidate cached lists for this user
+    convCache.clearPrefix(`conv:${req.user.id}:`);
     return res.json({ success: true });
   } catch (err) {
     console.error('Save messages error:', err);

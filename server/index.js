@@ -28,6 +28,32 @@ try {
   console.warn('Supabase not available — install @supabase/supabase-js and set env vars.');
 }
 
+// ── Simple in-memory TTL cache ────────────────────────────────────
+function createTTLCache(ttlMs = 300_000) {
+  const store = new Map();
+  const timers = new Map();
+
+  return {
+    get(key) {
+      const entry = store.get(key);
+      if (!entry) return null;
+      if (Date.now() - entry.ts > ttlMs) {
+        store.delete(key);
+        clearTimeout(timers.get(key));
+        timers.delete(key);
+        return null;
+      }
+      return entry.data;
+    },
+    set(key, data) {
+      store.set(key, { data, ts: Date.now() });
+      clearTimeout(timers.get(key));
+      timers.set(key, setTimeout(() => { store.delete(key); timers.delete(key); }, ttlMs));
+    },
+    _size: () => store.size,
+  };
+}
+
 const app = express();
 const PORT = process.env.PORT || 5000;
 
@@ -453,13 +479,18 @@ app.post('/api/chat-full', async (req, res) => {
 
 // Health check
 app.get('/api/health', (req, res) => {
+  res.set('Cache-Control', 'public, max-age=60');
   res.json({ status: 'OK', message: 'Server is running!' });
 });
 
 // ── Image generation (NVIDIA Flux) ────────────────────────────────
 app.post('/api/generate', async (req, res) => {
   try {
-    const { prompt, width = 1024, height = 1024, seed = 0, steps = 4 } = req.body;
+    const { prompt, width: rawWidth, height: rawHeight, seed = 0, steps = 4 } = req.body;
+
+    // Clamp dimensions — Flux.2-klein-4b caps at 1024
+    const width = Math.min(rawWidth || 1024, 1024);
+    const height = Math.min(rawHeight || 1024, 1024);
 
     if (!prompt) {
       return res.status(400).json({ error: 'Prompt is required' });
@@ -488,7 +519,7 @@ app.post('/api/generate', async (req, res) => {
       return res.status(isContentPolicy ? 400 : 502).json({
         error: isContentPolicy
           ? 'Your prompt was flagged by the content safety filter. Please try something else.'
-          : 'Image generation failed. Please try again.',
+          : `Image generation failed (${nvidiaRes.status}): ${errText.slice(0, 300)}`,
       });
     }
 
@@ -509,6 +540,7 @@ app.post('/api/generate', async (req, res) => {
 
 // ── Web search (Tavily) ────────────────────────────────────────────
 const TAVILY_API_KEY = process.env.TAVILY_API_KEY;
+const searchCache = createTTLCache(300_000); // 5-min TTL
 
 app.post('/api/search', async (req, res) => {
   try {
@@ -520,6 +552,13 @@ app.post('/api/search', async (req, res) => {
 
     if (!TAVILY_API_KEY) {
       return res.status(503).json({ error: 'Web search is not configured.' });
+    }
+
+    const trimmed = query.trim().toLowerCase();
+    const cached = searchCache.get(trimmed);
+    if (cached) {
+      res.set('X-Cache', 'HIT');
+      return res.json(cached);
     }
 
     const tavRes = await fetch('https://api.tavily.com/search', {
@@ -540,6 +579,8 @@ app.post('/api/search', async (req, res) => {
     }
 
     const data = await tavRes.json();
+    searchCache.set(trimmed, data);
+    res.set('X-Cache', 'MISS');
     res.json(data);
   } catch (err) {
     console.error('Search error:', err);

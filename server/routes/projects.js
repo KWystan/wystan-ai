@@ -2,13 +2,24 @@
 
 const { Router } = require('express');
 const { supabaseAdmin } = require('../supabase');
+const { createTTLCache } = require('../cache');
 
 const router = Router();
+const projCache = createTTLCache(30_000); // 30s TTL
 
 /* ── List projects for the authenticated user ───────────────────
- *  Returns: [{ id, name, created_at, updated_at, user_id }] */
+ *  Returns: [{ id, name, created_at, updated_at, user_id }]
+ *  Cached 30s per user. */
 router.get('/', async (req, res) => {
   try {
+    const cacheKey = `proj:${req.user.id}`;
+
+    const cached = projCache.get(cacheKey);
+    if (cached) {
+      res.set('X-Cache', 'HIT');
+      return res.json(cached);
+    }
+
     const { data, error } = await supabaseAdmin
       .from('projects')
       .select('*')
@@ -19,6 +30,8 @@ router.get('/', async (req, res) => {
       return res.status(500).json({ error: error.message });
     }
 
+    projCache.set(cacheKey, data || []);
+    res.set('X-Cache', 'MISS');
     return res.json(data || []);
   } catch (err) {
     console.error('List projects error:', err);
@@ -72,6 +85,8 @@ router.post('/', async (req, res) => {
       return res.status(500).json({ error: error.message });
     }
 
+    // Invalidate cached list for this user
+    projCache.del(`proj:${req.user.id}`);
     return res.status(201).json(data);
   } catch (err) {
     console.error('Create project error:', err);
@@ -101,6 +116,8 @@ router.put('/:id', async (req, res) => {
       return res.status(500).json({ error: error.message });
     }
 
+    // Invalidate cached list for this user
+    projCache.del(`proj:${req.user.id}`);
     return res.json(data);
   } catch (err) {
     console.error('Update project error:', err);
@@ -123,6 +140,8 @@ router.delete('/:id', async (req, res) => {
       return res.status(500).json({ error: error.message });
     }
 
+    // Invalidate cached list for this user
+    projCache.del(`proj:${req.user.id}`);
     return res.json({ success: true });
   } catch (err) {
     console.error('Delete project error:', err);

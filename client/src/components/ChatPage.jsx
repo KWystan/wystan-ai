@@ -66,16 +66,16 @@ function FilePreviewModal({ file, onClose }) {
         {/* ── Header ──────────────────────────────────────────── */}
         <div className="flex items-center justify-between px-4 py-3 border-b border-black/8 shrink-0">
           <div className="flex items-center gap-2 min-w-0">
-            <span className="material-symbols-outlined text-[18px] text-black/40">
+            <span className="material-symbols-outlined text-[18px] text-black">
               {fileIcon()}
             </span>
             <span className="text-sm font-medium text-black truncate">{file.filename}</span>
             {file.language && (
-              <span className="text-[10px] uppercase tracking-wider text-black/30 bg-black/5 rounded px-1.5 py-0.5 shrink-0">
+              <span className="text-[10px] uppercase tracking-wider text-black bg-black/5 rounded px-1.5 py-0.5 shrink-0">
                 {file.language}
               </span>
             )}
-            <span className="text-[11px] text-black/30 shrink-0">
+            <span className="text-[11px] text-black shrink-0">
               {(file.size / 1024).toFixed(1)} KB
             </span>
           </div>
@@ -90,14 +90,14 @@ function FilePreviewModal({ file, onClose }) {
                 a.download = file.filename;
                 a.click();
               }}
-              className="w-8 h-8 rounded-lg flex items-center justify-center text-black/40 hover-gate:text-black hover-gate:bg-black/5 active:scale-[0.92] transition-all duration-150"
+              className="w-8 h-8 rounded-lg flex items-center justify-center text-black hover-gate:text-black hover-gate:bg-black/5 active:scale-[0.92] transition-all duration-150"
               aria-label="Download file"
             >
               <span className="material-symbols-outlined text-[18px]">download</span>
             </button>
             <button
               onClick={onClose}
-              className="w-8 h-8 rounded-lg flex items-center justify-center text-black/40 hover-gate:text-black hover-gate:bg-black/5 active:scale-[0.92] transition-all duration-150"
+              className="w-8 h-8 rounded-lg flex items-center justify-center text-black hover-gate:text-black hover-gate:bg-black/5 active:scale-[0.92] transition-all duration-150"
             >
               <span className="material-symbols-outlined text-[18px]">close</span>
             </button>
@@ -124,17 +124,17 @@ function FilePreviewModal({ file, onClose }) {
                 <button
                   onClick={() => setPage((p) => Math.max(0, p - 1))}
                   disabled={page === 0}
-                  className="w-8 h-8 rounded-lg flex items-center justify-center text-black/40 hover-gate:text-black hover-gate:bg-black/5 disabled:opacity-20 disabled:pointer-events-none active:scale-[0.92] transition-all duration-150"
+                  className="w-8 h-8 rounded-lg flex items-center justify-center text-black hover-gate:text-black hover-gate:bg-black/5 disabled:opacity-20 disabled:pointer-events-none active:scale-[0.92] transition-all duration-150"
                 >
                   <span className="material-symbols-outlined text-[18px]">chevron_left</span>
                 </button>
-                <span className="text-xs text-black/40 font-medium min-w-[4rem] text-center">
+                <span className="text-xs text-black font-medium min-w-[4rem] text-center">
                   {page + 1} / {file.pages.length}
                 </span>
                 <button
                   onClick={() => setPage((p) => Math.min(file.pages.length - 1, p + 1))}
                   disabled={page >= file.pages.length - 1}
-                  className="w-8 h-8 rounded-lg flex items-center justify-center text-black/40 hover-gate:text-black hover-gate:bg-black/5 disabled:opacity-20 disabled:pointer-events-none active:scale-[0.92] transition-all duration-150"
+                  className="w-8 h-8 rounded-lg flex items-center justify-center text-black hover-gate:text-black hover-gate:bg-black/5 disabled:opacity-20 disabled:pointer-events-none active:scale-[0.92] transition-all duration-150"
                 >
                   <span className="material-symbols-outlined text-[18px]">chevron_right</span>
                 </button>
@@ -149,13 +149,13 @@ function FilePreviewModal({ file, onClose }) {
           )}
 
           {hasContent && !isImage && (
-            <pre className="p-4 text-[13px] leading-relaxed font-mono text-black/75 whitespace-pre-wrap overflow-x-auto">
+            <pre className="p-4 text-[13px] leading-relaxed font-mono text-black whitespace-pre-wrap overflow-x-auto">
               {file.content}
             </pre>
           )}
 
           {!isImage && !hasContent && !isPdf && (
-            <div className="flex flex-col items-center justify-center p-8 text-black/40">
+            <div className="flex flex-col items-center justify-center p-8 text-black">
               <span className="material-symbols-outlined text-3xl mb-2">visibility_off</span>
               <p className="text-sm">No preview available for this file.</p>
             </div>
@@ -181,12 +181,12 @@ function CodePanel({ language, codeString, children }) {
     <div className="my-3 rounded-lg overflow-hidden border border-black/8 bg-[#f8f8f8]">
       {/* Header */}
       <div className="flex items-center justify-between px-3 py-1.5 bg-black/5 border-b border-black/8 select-none">
-        <span className="text-[11px] font-medium text-black/40 uppercase tracking-wider">
+        <span className="text-[11px] font-medium text-black uppercase tracking-wider">
           {language || 'code'}
         </span>
         <button
           onClick={handleCopy}
-          className="hover-gate:opacity-100 flex items-center gap-1 text-[11px] font-medium text-black/40 hover:text-black/60 transition-colors duration-150"
+          className="hover-gate:opacity-100 flex items-center gap-1 text-[11px] font-medium text-black hover:text-black transition-colors duration-150"
         >
           <span
             className="material-symbols-outlined text-[14px]"
@@ -198,7 +198,7 @@ function CodePanel({ language, codeString, children }) {
         </button>
       </div>
       {/* Code area */}
-      <pre className="px-3 py-2.5 overflow-x-auto text-[13px] leading-relaxed font-mono text-black/75 whitespace-pre m-0 border-0 bg-transparent">
+      <pre className="px-3 py-2.5 overflow-x-auto text-[13px] leading-relaxed font-mono text-black whitespace-pre m-0 border-0 bg-transparent">
         <code className="text-[13px] font-mono">{children}</code>
       </pre>
     </div>
@@ -231,7 +231,7 @@ function renderMessageText(text) {
 
           // Fallback: plain pre block (edge case like indented code)
           return (
-            <pre className="bg-black/5 border border-black/8 rounded-lg px-3 py-2.5 my-1.5 overflow-x-auto text-[13px] leading-relaxed font-mono text-black/75 whitespace-pre-wrap">
+            <pre className="bg-black/5 border border-black/8 rounded-lg px-3 py-2.5 my-1.5 overflow-x-auto text-[13px] leading-relaxed font-mono text-black whitespace-pre-wrap">
               {children}
             </pre>
           );
@@ -240,7 +240,7 @@ function renderMessageText(text) {
           const isInline = !className;
           if (isInline) {
             return (
-              <code className="bg-black/5 border border-black/8 rounded px-1.5 py-0.5 text-[13px] font-mono text-black/70 whitespace-nowrap" {...props}>
+              <code className="bg-black/5 border border-black/8 rounded px-1.5 py-0.5 text-[13px] font-mono text-black whitespace-nowrap" {...props}>
                 {children}
               </code>
             );
@@ -258,17 +258,17 @@ function renderMessageText(text) {
           return <li className="leading-normal">{children}</li>;
         },
         h1({ children }) {
-          return <h1 className="text-lg font-bold text-black/85 mt-2 mb-0.5">{children}</h1>;
+          return <h1 className="text-lg font-bold text-black mt-2 mb-0.5">{children}</h1>;
         },
         h2({ children }) {
-          return <h2 className="text-base font-bold text-black/85 mt-2 mb-0.5">{children}</h2>;
+          return <h2 className="text-base font-bold text-black mt-2 mb-0.5">{children}</h2>;
         },
         h3({ children }) {
-          return <h3 className="text-[15px] font-bold text-black/85 mt-1.5 mb-0">{children}</h3>;
+          return <h3 className="text-[15px] font-bold text-black mt-1.5 mb-0">{children}</h3>;
         },
         blockquote({ children }) {
           return (
-            <blockquote className="border-l-2 border-black/15 pl-3 my-0.5 text-black/50 italic">
+            <blockquote className="border-l-2 border-black/15 pl-3 my-0.5 text-black italic">
               {children}
             </blockquote>
           );
@@ -277,12 +277,12 @@ function renderMessageText(text) {
           return <hr className="my-1.5 border-black/8" />;
         },
         strong({ children }) {
-          return <strong className="font-semibold text-black/80">{children}</strong>;
+          return <strong className="font-semibold text-black">{children}</strong>;
         },
         a({ href, children }) {
           return (
             <a href={href} target="_blank" rel="noopener noreferrer"
-               className="underline text-black/60 hover:text-black transition-colors duration-150">
+               className="underline text-black hover:text-black transition-colors duration-150">
               {children}
             </a>
           );
@@ -319,14 +319,14 @@ function renderMessageText(text) {
         },
         th({ children }) {
           return (
-            <th className="border border-black/15 px-3 py-2 text-left font-semibold text-black/80 text-[12px] uppercase tracking-wider">
+            <th className="border border-black/15 px-3 py-2 text-left font-semibold text-black text-[12px] uppercase tracking-wider">
               {children}
             </th>
           );
         },
         td({ children }) {
           return (
-            <td className="border border-black/15 px-3 py-1.5 text-black/70 align-top">
+            <td className="border border-black/15 px-3 py-1.5 text-black align-top">
               {children}
             </td>
           );
@@ -1155,8 +1155,8 @@ export default function ChatPage() {
         {isDragging && (
           <div className="absolute inset-0 z-[100] bg-black/[0.04] flex items-center justify-center pointer-events-none">
             <div className="flex flex-col items-center gap-2 p-6 rounded-2xl bg-white/80 backdrop-blur-md border border-dashed border-black/20 shadow-sm">
-              <span className="material-symbols-outlined text-2xl text-black/30">add_photo_alternate</span>
-              <span className="text-sm text-black/50">Drop files to attach</span>
+              <span className="material-symbols-outlined text-2xl text-black">add_photo_alternate</span>
+              <span className="text-sm text-black">Drop files to attach</span>
             </div>
           </div>
         )}
@@ -1167,7 +1167,7 @@ export default function ChatPage() {
             {/* Mobile sidebar toggle */}
             <button
               onClick={() => setSidebarOpen(true)}
-              className="md:hidden w-8 h-8 rounded-lg border border-black/12 flex items-center justify-center text-black/50 hover-gate:border-black/35 hover-gate:text-black active:scale-[0.97] transition-all duration-150"
+              className="md:hidden w-8 h-8 rounded-lg border border-black/12 flex items-center justify-center text-black hover-gate:border-black/35 hover-gate:text-black active:scale-[0.97] transition-all duration-150"
               aria-label="Open sidebar"
             >
               <span className="material-symbols-outlined text-[18px]">menu</span>
@@ -1176,10 +1176,10 @@ export default function ChatPage() {
             <div className="relative">
               <button
                 onClick={() => setModelDropdownOpen(!modelDropdownOpen)}
-                className="flex items-center gap-1 text-sm font-medium text-black/60 hover-gate:text-black active:scale-[0.97] transition-all duration-150"
+                className="flex items-center gap-1 text-sm font-medium text-black hover-gate:text-black active:scale-[0.97] transition-all duration-150"
               >
                 {MODELS.find((m) => m.id === selectedModel)?.name}
-                <span className="material-symbols-outlined text-[14px] text-black/35">expand_more</span>
+                <span className="material-symbols-outlined text-[14px] text-black">expand_more</span>
               </button>
               {modelDropdownOpen && (
                 <>
@@ -1195,12 +1195,12 @@ export default function ChatPage() {
                         className={`w-full text-left px-3.5 py-2.5 text-xs transition-colors duration-150 flex items-center justify-between ${
                           m.id === selectedModel
                             ? 'bg-black/5 text-black font-medium'
-                            : 'text-black/55 hover-gate:text-black hover-gate:bg-black/[0.03]'
+                            : 'text-black hover-gate:text-black hover-gate:bg-black/[0.03]'
                         }`}
                       >
                         {m.name}
                         {m.id === selectedModel && (
-                          <span className="material-symbols-outlined text-[14px] text-black/40">check</span>
+                          <span className="material-symbols-outlined text-[14px] text-black">check</span>
                         )}
                       </button>
                     ))}
@@ -1214,7 +1214,7 @@ export default function ChatPage() {
               {messages.length > 0 && (
                 <button
                   onClick={handleSaveConversation}
-                  className="flex items-center gap-1 text-sm text-black/40 hover-gate:text-black active:scale-[0.97] transition-all duration-150"
+                  className="flex items-center gap-1 text-sm text-black hover-gate:text-black active:scale-[0.97] transition-all duration-150"
                   aria-label="Save conversation"
                 >
                   <span className="material-symbols-outlined text-[16px]">download</span>
@@ -1278,7 +1278,7 @@ export default function ChatPage() {
                 <h2 className="font-display text-2xl font-bold text-black mb-1.5">
                   How can I help you?
                 </h2>
-                <p className="text-sm text-black/40 max-w-sm mb-8">
+                <p className="text-sm text-black max-w-sm mb-8">
                   Ask me anything — from coding questions to creative writing to casual conversation.
                 </p>
                 <div className="flex flex-wrap justify-center gap-2 max-w-md">
@@ -1286,7 +1286,7 @@ export default function ChatPage() {
                     <button
                       key={s}
                       onClick={() => handleSend(s)}
-                      className="px-3 py-1.5 rounded-lg border border-black/10 text-xs text-black/50 hover-gate:border-black/25 hover-gate:text-black/80 active:scale-[0.97] transition-all duration-150"
+                      className="px-3 py-1.5 rounded-lg border border-black/10 text-xs text-black hover-gate:border-black/25 hover-gate:text-black active:scale-[0.97] transition-all duration-150"
                     >
                       {s}
                     </button>
@@ -1311,11 +1311,11 @@ export default function ChatPage() {
                         typeof msg.content === 'string' && msg.content.startsWith('[Web search results for') ? (
                           <div className="max-w-[80%]">
                             <div className="bg-blue-50 border border-blue-100 rounded-2xl rounded-br-md px-3.5 py-2.5 text-[11px] leading-relaxed whitespace-pre-wrap [overflow-wrap:anywhere]">
-                              <div className="flex items-center gap-1.5 mb-1.5 text-black/40">
+                              <div className="flex items-center gap-1.5 mb-1.5 text-black">
                                 <span className="material-symbols-outlined text-[13px]">travel_explore</span>
                                 <span className="font-medium text-[10px] uppercase tracking-wider">Web Search</span>
                               </div>
-                              <div className="text-black/65">{msg.content.replace(/^\[Web search results for ".+"\]\n?/, '')}</div>
+                              <div className="text-black">{msg.content.replace(/^\[Web search results for ".+"\]\n?/, '')}</div>
                             </div>
                           </div>
                         ) : (
@@ -1352,7 +1352,7 @@ export default function ChatPage() {
                                 {chips.map((ref, i) => (
                                   <div
                                     key={i}
-                                    className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg bg-black/5 border border-black/10 text-xs text-black/60"
+                                    className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg bg-black/5 border border-black/10 text-xs text-black"
                                   >
                                     <span className="material-symbols-outlined text-[14px] shrink-0">
                                       {iconForFilename(ref.filename)}
@@ -1396,7 +1396,7 @@ export default function ChatPage() {
                             <img src={aiSparkSvg} alt="" className="w-full h-full object-cover" />
                           </div>
                           <div className="relative group min-w-0">
-                            <div className={`border border-black/8 rounded-2xl rounded-bl-md text-sm leading-normal text-black/70 [overflow-wrap:anywhere] ${msg.generatedImages?.length ? 'pb-1' : 'px-3 md:px-4 pb-6 md:pb-8 pt-3'}`}>
+                            <div className={`border border-black/8 rounded-2xl rounded-bl-md text-sm leading-normal text-black [overflow-wrap:anywhere] ${msg.generatedImages?.length ? 'pb-1' : 'px-3 md:px-4 pb-6 md:pb-8 pt-3'}`}>
                               {msg.generatedImages?.length > 0 && (
                                 <div className="space-y-2">
                                   {msg.generatedImages.map((url, i) => (
@@ -1420,7 +1420,7 @@ export default function ChatPage() {
                             {msg.content && !isStreaming && (
                               <button
                                 onClick={() => handleCopy(msg.content, i)}
-                                className="absolute bottom-2 right-2 opacity-0 group-hover:opacity-100 w-6 h-6 rounded-md flex items-center justify-center text-black/30 hover-gate:text-black/60 hover-gate:bg-black/5 active:scale-[0.92] transition-all duration-150"
+                                className="absolute bottom-2 right-2 opacity-0 group-hover:opacity-100 w-6 h-6 rounded-md flex items-center justify-center text-black hover-gate:text-black hover-gate:bg-black/5 active:scale-[0.92] transition-all duration-150"
                                 aria-label="Copy reply"
                               >
                                 <span className="material-symbols-outlined text-[13px]">
@@ -1442,7 +1442,7 @@ export default function ChatPage() {
                       <span className="w-1.5 h-1.5 rounded-full bg-black/30 animate-bounce" style={{ animationDelay: '0.15s' }} />
                       <span className="w-1.5 h-1.5 rounded-full bg-black/30 animate-bounce" style={{ animationDelay: '0.3s' }} />
                     </div>
-                    <span className="text-xs text-black/40">
+                    <span className="text-xs text-black">
                       {loadingPhase === 'searching' ? 'Searching the web…'
                         : loadingPhase === 'generating' ? 'Generating image…'
                         : 'Thinking'}
@@ -1473,7 +1473,7 @@ export default function ChatPage() {
                 {attachedFiles.map((f, i) => (
                   <div
                     key={i}
-                    className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg bg-black/5 border border-black/10 text-xs text-black/60 cursor-pointer hover-gate:bg-black/10 hover-gate:border-black/20 transition-all duration-150 group"
+                    className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg bg-black/5 border border-black/10 text-xs text-black cursor-pointer hover-gate:bg-black/10 hover-gate:border-black/20 transition-all duration-150 group"
                     onClick={() => setPreviewFile(f)}
                   >
                     <span className="material-symbols-outlined text-[14px] shrink-0">
@@ -1482,7 +1482,7 @@ export default function ChatPage() {
                     <span className="truncate max-w-[120px] group-hover:max-w-none transition-all duration-150">
                       {f.filename}
                       {f.type === 'pdf' && f.pages && (
-                        <span className="ml-1 text-black/30">· {f.pages.length}p</span>
+                        <span className="ml-1 text-black">· {f.pages.length}p</span>
                       )}
                     </span>
                     <button
@@ -1490,7 +1490,7 @@ export default function ChatPage() {
                         e.stopPropagation();
                         setAttachedFiles((prev) => prev.filter((_, j) => j !== i));
                       }}
-                      className="text-black/40 hover-gate:text-black ml-0.5"
+                      className="text-black hover-gate:text-black ml-0.5"
                       aria-label="Remove file"
                     >
                       <span className="material-symbols-outlined text-[14px]">close</span>
@@ -1501,7 +1501,7 @@ export default function ChatPage() {
             )}
             {/* Upload progress */}
             {uploadProgress && (
-              <div className="mb-2 flex items-center gap-2 px-3 py-1.5 rounded-lg bg-black/[0.03] border border-black/8 text-[11px] text-black/50">
+              <div className="mb-2 flex items-center gap-2 px-3 py-1.5 rounded-lg bg-black/[0.03] border border-black/8 text-[11px] text-black">
                 <span className="material-symbols-outlined text-[14px] animate-spin shrink-0">progress_activity</span>
                 <span className="flex-1">Uploading {uploadProgress.current + 1} of {uploadProgress.total}…</span>
                 <div className="w-16 h-1 rounded-full bg-black/8 overflow-hidden flex-shrink-0">
@@ -1525,7 +1525,7 @@ export default function ChatPage() {
                 <button
                   onClick={handleOpenModeMenu}
                   disabled={isUploading}
-                  className="absolute left-2 w-8 h-8 rounded-lg flex items-center justify-center text-black/50 hover:text-black disabled:text-black/20 active:scale-[0.97] transition-all duration-150 z-10"
+                  className="absolute left-2 w-8 h-8 rounded-lg flex items-center justify-center text-black hover:text-black disabled:text-black active:scale-[0.97] transition-all duration-150 z-10"
                   aria-label="Add mode"
                 >
                   <span className={`material-symbols-outlined text-[18px] ${isUploading ? 'animate-spin' : ''}`}>
@@ -1541,21 +1541,21 @@ export default function ChatPage() {
                     >
                       <button
                         onClick={() => { setModeMenuOpen(false); fileInputRef.current?.click(); }}
-                        className="w-full text-left px-3.5 py-1.5 text-xs text-black/55 hover-gate:text-black hover-gate:bg-black/[0.03] transition-colors duration-150 flex items-center gap-2.5"
+                        className="w-full text-left px-3.5 py-1.5 text-xs text-black hover-gate:text-black hover-gate:bg-black/[0.03] transition-colors duration-150 flex items-center gap-2.5"
                       >
                         <span className="material-symbols-outlined text-[16px]">attach_file</span>
                         Attach file
                       </button>
                       <button
                         onClick={() => { setModeMenuOpen(false); setActiveMode('generate'); textareaRef.current?.focus(); }}
-                        className="w-full text-left px-3.5 py-1.5 text-xs text-black/55 hover-gate:text-black hover-gate:bg-black/[0.03] transition-colors duration-150 flex items-center gap-2.5"
+                        className="w-full text-left px-3.5 py-1.5 text-xs text-black hover-gate:text-black hover-gate:bg-black/[0.03] transition-colors duration-150 flex items-center gap-2.5"
                       >
                         <span className="material-symbols-outlined text-[16px]">image</span>
                         Generate
                       </button>
                       <button
                         onClick={() => { setModeMenuOpen(false); setActiveMode('search'); textareaRef.current?.focus(); }}
-                        className="w-full text-left px-3.5 py-1.5 text-xs text-black/55 hover-gate:text-black hover-gate:bg-black/[0.03] transition-colors duration-150 flex items-center gap-2.5"
+                        className="w-full text-left px-3.5 py-1.5 text-xs text-black hover-gate:text-black hover-gate:bg-black/[0.03] transition-colors duration-150 flex items-center gap-2.5"
                       >
                         <span className="material-symbols-outlined text-[16px]">travel_explore</span>
                         Search
@@ -1582,7 +1582,7 @@ export default function ChatPage() {
                   maxLength={10000}
                   rows={1}
                   disabled={isLoading}
-                  className={`w-full bg-white text-black text-sm rounded-xl px-4 py-2.5 resize-none overflow-y-auto hide-scrollbar outline-none placeholder:text-black/30 border border-black/10 focus:border-black/25 transition-all duration-150 disabled:opacity-50 leading-relaxed ${
+                  className={`w-full bg-white text-black text-sm rounded-xl px-4 py-2.5 resize-none overflow-y-auto hide-scrollbar outline-none placeholder:text-black border border-black/10 focus:border-black/25 transition-all duration-150 disabled:opacity-50 leading-relaxed ${
                     activeMode ? 'pl-36' : 'pl-12'
                   }`}
                 />
@@ -1594,7 +1594,7 @@ export default function ChatPage() {
                   </div>
                 )}
                 {pasteConverting && (
-                  <div className="absolute bottom-1 left-3 flex items-center gap-1.5 text-[10px] text-black/35 pointer-events-none">
+                  <div className="absolute bottom-1 left-3 flex items-center gap-1.5 text-[10px] text-black pointer-events-none">
                     <span className="material-symbols-outlined text-[12px] animate-spin">progress_activity</span>
                     Converting paste to file…
                   </div>
@@ -1609,10 +1609,10 @@ export default function ChatPage() {
                 <span className="material-symbols-outlined text-[18px]">arrow_upward</span>
               </button>
             </div>
-            <p className="text-center text-[10px] text-black/20 mt-2">
+            <p className="text-center text-[10px] text-black mt-2">
               AI can make mistakes. Consider checking important information.
             </p>
-            <p className="text-center text-[9px] text-black/15 mt-0.5">
+            <p className="text-center text-[9px] text-black mt-0.5">
               A personal project by Karl Wystan &mdash; still under development.
             </p>
           </div>
@@ -1637,7 +1637,7 @@ export default function ChatPage() {
               </h2>
               <button
                 onClick={() => { setAuthOpen(false); setAuthError(null); setAuthSuccessMsg(null); setAuthEmail(''); setAuthPassword(''); }}
-                className="w-7 h-7 rounded-lg flex items-center justify-center text-black/40 hover:text-black active:scale-[0.97] transition-all duration-150"
+                className="w-7 h-7 rounded-lg flex items-center justify-center text-black hover:text-black active:scale-[0.97] transition-all duration-150"
               >
                 <span className="material-symbols-outlined text-[18px]">close</span>
               </button>
@@ -1659,7 +1659,7 @@ export default function ChatPage() {
                 }
               }}
               disabled={authLoading}
-              className="w-full flex items-center justify-center gap-2.5 px-4 py-2.5 rounded-xl border border-black/10 text-sm text-black/60 hover:border-black/25 hover:text-black active:scale-[0.98] transition-all duration-150 disabled:opacity-40"
+              className="w-full flex items-center justify-center gap-2.5 px-4 py-2.5 rounded-xl border border-black/10 text-sm text-black hover:border-black/25 hover:text-black active:scale-[0.98] transition-all duration-150 disabled:opacity-40"
             >
               <svg className="w-4 h-4" viewBox="0 0 24 24"><path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92a5.06 5.06 0 0 1-2.2 3.32v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.1z"/><path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/><path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z"/><path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"/></svg>
               {authLoading ? 'Connecting…' : `Continue with Google`}
@@ -1668,7 +1668,7 @@ export default function ChatPage() {
             {/* Divider */}
             <div className="flex items-center gap-3 my-4">
               <div className="flex-1 border-t border-black/8" />
-              <span className="text-[11px] text-black/30 uppercase tracking-wider">or</span>
+              <span className="text-[11px] text-black uppercase tracking-wider">or</span>
               <div className="flex-1 border-t border-black/8" />
             </div>
 
@@ -1680,7 +1680,7 @@ export default function ChatPage() {
                   placeholder="Email"
                   value={authEmail}
                   onChange={(e) => setAuthEmail(e.target.value)}
-                  className="w-full bg-white text-black text-sm rounded-xl px-3.5 py-2.5 outline-none placeholder:text-black/30 border border-black/10 focus:border-black/25 transition-all duration-150"
+                  className="w-full bg-white text-black text-sm rounded-xl px-3.5 py-2.5 outline-none placeholder:text-black border border-black/10 focus:border-black/25 transition-all duration-150"
                 />
               </div>
               <div>
@@ -1690,7 +1690,7 @@ export default function ChatPage() {
                   value={authPassword}
                   onChange={(e) => setAuthPassword(e.target.value)}
                   onKeyDown={(e) => { if (e.key === 'Enter') document.getElementById('auth-submit')?.click(); }}
-                  className="w-full bg-white text-black text-sm rounded-xl px-3.5 py-2.5 outline-none placeholder:text-black/30 border border-black/10 focus:border-black/25 transition-all duration-150"
+                  className="w-full bg-white text-black text-sm rounded-xl px-3.5 py-2.5 outline-none placeholder:text-black border border-black/10 focus:border-black/25 transition-all duration-150"
                 />
               </div>
 
@@ -1753,7 +1753,7 @@ export default function ChatPage() {
                 {authLoading ? 'Please wait…' : authMode === 'login' ? 'Sign in' : 'Create account'}
               </button>
 
-              <p className="text-center text-xs text-black/40">
+              <p className="text-center text-xs text-black">
                 {authMode === 'login' ? (
                   <>Don&apos;t have an account?{' '}
                     <button onClick={() => { setAuthMode('register'); setAuthError(null); }} className="underline hover:text-black transition-colors duration-150">

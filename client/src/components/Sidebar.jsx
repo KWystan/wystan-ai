@@ -1,9 +1,9 @@
-import { useState, useEffect, useCallback, useRef } from 'react';
+import { memo, useState, useEffect, useCallback, useRef } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { authFetch } from '../lib/auth.js';
 import logo from '../assets/logo.png';
 
-export default function Sidebar({
+const Sidebar = memo(function Sidebar({
   user,
   onNewChat,
   currentConversationId,
@@ -284,11 +284,11 @@ export default function Sidebar({
     if (isMoving) {
       return (
         <div className="px-2 py-1.5 space-y-0.5">
-          <div className="text-[10px] text-black/40 mb-1">Move to project:</div>
+          <div className="text-[10px] text-black mb-1">Move to project:</div>
           <button
             onClick={() => moveConversation(conversationId, null)}
             disabled={actionLoading === `move-conversation-${conversationId}`}
-            className="w-full text-left text-[11px] px-2 py-1 rounded hover:bg-black/5 text-black/60 disabled:opacity-40"
+            className="w-full text-left text-[11px] px-2 py-1 rounded hover:bg-black/5 text-black disabled:opacity-40"
           >
             No project
           </button>
@@ -297,7 +297,7 @@ export default function Sidebar({
               key={p.id}
               onClick={() => moveConversation(conversationId, p.id)}
               disabled={actionLoading === `move-conversation-${conversationId}`}
-              className="w-full text-left text-[11px] px-2 py-1 rounded hover:bg-black/5 text-black/60 truncate disabled:opacity-40"
+              className="w-full text-left text-[11px] px-2 py-1 rounded hover:bg-black/5 text-black truncate disabled:opacity-40"
             >
               {p.name}
             </button>
@@ -316,13 +316,13 @@ export default function Sidebar({
           >
             <button
               onClick={() => { setRenameValue(conversations.find(c => c.id === conversationId)?.title || ''); setRenamingId({ type: 'conversation', id: conversationId }); setKebabOpenId(null); }}
-              className="w-full text-left px-3 py-1.5 text-[11px] text-black/60 hover:bg-black/5 transition-colors duration-100"
+              className="w-full text-left px-3 py-1.5 text-[11px] text-black hover:bg-black/5 transition-colors duration-100"
             >
               Rename
             </button>
             <button
               onClick={() => { setMovingConversationId(conversationId); setKebabOpenId(null); }}
-              className="w-full text-left px-3 py-1.5 text-[11px] text-black/60 hover:bg-black/5 transition-colors duration-100"
+              className="w-full text-left px-3 py-1.5 text-[11px] text-black hover:bg-black/5 transition-colors duration-100"
             >
               Move to project
             </button>
@@ -374,7 +374,7 @@ export default function Sidebar({
           >
             <button
               onClick={() => { setRenameValue(projects.find(p => p.id === projectId)?.name || ''); setRenamingId({ type: 'project', id: projectId }); setKebabProjectId(null); }}
-              className="w-full text-left px-3 py-1.5 text-[11px] text-black/60 hover:bg-black/5 transition-colors duration-100"
+              className="w-full text-left px-3 py-1.5 text-[11px] text-black hover:bg-black/5 transition-colors duration-100"
             >
               Rename
             </button>
@@ -407,13 +407,13 @@ export default function Sidebar({
           <span className="w-7 h-7 rounded overflow-hidden flex-shrink-0">
             <img src={logo} alt="Logo" className="w-full h-full object-cover" />
           </span>
-          <span className="text-sm font-medium text-black/70 group-hover:text-black transition-colors duration-150">
+          <span className="text-sm font-medium text-black group-hover:text-black transition-colors duration-150">
             Wystan
           </span>
         </Link>
         <button
           onClick={onCloseSidebar}
-          className="md:hidden w-7 h-7 rounded-lg flex items-center justify-center text-black/40 hover-gate:text-black active:scale-[0.97] transition-all duration-150"
+          className="md:hidden w-7 h-7 rounded-lg flex items-center justify-center text-black hover-gate:text-black active:scale-[0.97] transition-all duration-150"
           aria-label="Close sidebar"
         >
           <span className="material-symbols-outlined text-[18px]">close</span>
@@ -425,7 +425,7 @@ export default function Sidebar({
         <button
           onClick={handleNewChat}
           disabled={actionLoading === 'new-chat'}
-          className="w-full flex items-center gap-1 px-2 py-1 rounded-md text-xs text-black/65 hover-gate:text-black active:scale-[0.97] transition-all duration-150 disabled:opacity-40 disabled:cursor-default disabled:active:scale-100"
+          className="w-full flex items-center gap-1 px-2 py-1 rounded-md text-xs text-black hover-gate:text-black active:scale-[0.97] transition-all duration-150 disabled:opacity-40 disabled:cursor-default disabled:active:scale-100"
         >
           {actionLoading === 'new-chat' ? (
             <span className="material-symbols-outlined text-[13px] animate-spin">progress_activity</span>
@@ -442,7 +442,7 @@ export default function Sidebar({
       <div className="px-3 mt-px">
         <Link
           to="/generate"
-          className="w-full flex items-center gap-1 px-2 py-1 rounded-md text-xs text-black/65 hover-gate:text-black active:scale-[0.97] transition-all duration-150"
+          className="w-full flex items-center gap-1 px-2 py-1 rounded-md text-xs text-black hover-gate:text-black active:scale-[0.97] transition-all duration-150"
         >
           <svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 20 20" className="shrink-0 mr-px">
             <path fill="currentColor" d="M17.125 6.17L15.079.535c-.151-.416-.595-.637-.989-.492L.492 5.006c-.394.144-.593.597-.441 1.013l2.156 5.941V8.777c0-1.438 1.148-2.607 2.56-2.607H8.36l4.285-3.008l2.479 3.008zM19.238 8H4.767a.76.76 0 0 0-.762.777v9.42c.001.444.343.803.762.803h14.471c.42 0 .762-.359.762-.803v-9.42A.76.76 0 0 0 19.238 8M18 17H6v-2l1.984-4.018l2.768 3.436l2.598-2.662l3.338-1.205L18 14z" />
@@ -455,7 +455,7 @@ export default function Sidebar({
         /* ── Logged-out state ─────────────────────────────────── */
         <>
           <div className="flex-1 flex items-center justify-center px-6">
-            <p className="text-xs text-black/30 text-center leading-relaxed">
+            <p className="text-xs text-black text-center leading-relaxed">
               Sign in to see your conversations and projects.
             </p>
           </div>
@@ -471,11 +471,11 @@ export default function Sidebar({
             >
               Sign in
             </button>
-            <p className="text-center text-xs text-black/30">
+            <p className="text-center text-xs text-black">
               New here?{' '}
               <button
                 onClick={() => onOpenAuth?.('register')}
-                className="underline hover:text-black/50 transition-colors duration-150"
+                className="underline hover:text-black transition-colors duration-150"
               >
                 Create an account
               </button>
@@ -492,7 +492,7 @@ export default function Sidebar({
               <div className="flex items-center justify-between px-1 py-0.5">
                 <button
                   onClick={() => setProjectsExpanded(!projectsExpanded)}
-                  className="flex items-center gap-0.5 text-[10px] font-medium text-black/55 hover:text-black/70 transition-colors duration-150 uppercase tracking-wider"
+                  className="flex items-center gap-0.5 text-[10px] font-medium text-black hover:text-black transition-colors duration-150 uppercase tracking-wider"
                 >
                   <span className="material-symbols-outlined text-[12px]">
                     {projectsExpanded ? 'expand_more' : 'chevron_right'}
@@ -501,7 +501,7 @@ export default function Sidebar({
                 </button>
                 <button
                   onClick={() => setCreatingProject(true)}
-                  className="w-4 h-4 rounded flex items-center justify-center text-black/45 hover:text-black hover:bg-black/5 transition-all duration-150"
+                  className="w-4 h-4 rounded flex items-center justify-center text-black hover:text-black hover:bg-black/5 transition-all duration-150"
                   aria-label="New project"
                 >
                   <span className="material-symbols-outlined text-[12px]">add</span>
@@ -530,9 +530,9 @@ export default function Sidebar({
                   )}
 
                   {loadingProjects ? (
-                    <div className="px-3 py-2 text-[11px] text-black/30">Loading…</div>
+                    <div className="px-3 py-2 text-[11px] text-black">Loading…</div>
                   ) : projects.length === 0 ? (
-                    <div className="px-3 py-2 text-[11px] text-black/25 italic">
+                    <div className="px-3 py-2 text-[11px] text-black italic">
                       {creatingProject ? '' : 'No projects yet'}
                     </div>
                   ) : (
@@ -544,7 +544,7 @@ export default function Sidebar({
                             className="flex items-center justify-center w-5 h-5 flex-shrink-0"
                             aria-label="Toggle project"
                           >
-                            <span className="material-symbols-outlined text-[13px] text-black/25">
+                            <span className="material-symbols-outlined text-[13px] text-black">
                               {expandedProjects.has(project.id) ? 'expand_more' : 'chevron_right'}
                             </span>
                           </button>
@@ -552,15 +552,15 @@ export default function Sidebar({
                             className="flex items-center gap-1.5 flex-1 min-w-0 cursor-pointer"
                             onClick={(e) => { e.stopPropagation(); navigate(`/project/${project.id}`); onCloseSidebar?.(); }}
                           >
-                            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 512 512" className="shrink-0 text-black/30">
+                            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 512 512" className="shrink-0 text-black">
                               <path fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="32" d="M440 432H72a40 40 0 0 1-40-40V120a40 40 0 0 1 40-40h75.89a40 40 0 0 1 22.19 6.72l27.84 18.56a40 40 0 0 0 22.19 6.72H440a40 40 0 0 1 40 40v240a40 40 0 0 1-40 40M32 192h448" />
                             </svg>
-                            <span className="text-xs text-black/50 truncate">{project.name}</span>
+                            <span className="text-xs text-black truncate">{project.name}</span>
                           </span>
                           <div className="flex-shrink-0 relative">
                             <button
                               onClick={(e) => { e.stopPropagation(); setKebabProjectId(kebabProjectId === project.id ? null : project.id); setKebabOpenId(null); }}
-                              className="opacity-60 sm:opacity-0 group-hover:opacity-100 w-5 h-5 rounded flex items-center justify-center text-black/25 hover:text-black/60 hover:bg-black/5 transition-all duration-150"
+                              className="opacity-60 sm:opacity-0 group-hover:opacity-100 w-5 h-5 rounded flex items-center justify-center text-black hover:text-black hover:bg-black/5 transition-all duration-150"
                               aria-label="Project menu"
                             >
                               <span className="material-symbols-outlined text-[13px]">more_horiz</span>
@@ -572,7 +572,7 @@ export default function Sidebar({
                         {expandedProjects.has(project.id) && (
                           <div className="ml-4 space-y-0.5">
                             {conversationsForProject(project.id).length === 0 ? (
-                              <div className="px-3 py-1 text-[10px] text-black/20 italic">Empty project</div>
+                              <div className="px-3 py-1 text-[10px] text-black italic">Empty project</div>
                             ) : (
                               conversationsForProject(project.id).map((conv) => (
                                 <div
@@ -580,7 +580,7 @@ export default function Sidebar({
                                   className={`relative group flex items-center px-2 py-1 rounded-lg cursor-pointer transition-colors duration-150 [backface-visibility:hidden] ${
                                     conv.id === currentConversationId
                                       ? 'bg-black/5 text-black'
-                                      : 'text-black/50 hover:bg-black/[0.03] hover:text-black/70'
+                                      : 'text-black hover:bg-black/[0.03] hover:text-black'
                                   }`}
                                   onClick={() => onSelectConversation?.(conv.id)}
                                 >
@@ -588,7 +588,7 @@ export default function Sidebar({
                                   <div className="flex-shrink-0 relative">
                                     <button
                                       onClick={(e) => { e.stopPropagation(); setKebabOpenId(kebabOpenId === conv.id ? null : conv.id); setKebabProjectId(null); }}
-                                      className="opacity-60 sm:opacity-0 group-hover:opacity-100 w-4 h-4 rounded flex items-center justify-center text-black/20 hover:text-black/50 hover:bg-black/5 transition-all duration-150"
+                                      className="opacity-60 sm:opacity-0 group-hover:opacity-100 w-4 h-4 rounded flex items-center justify-center text-black hover:text-black hover:bg-black/5 transition-all duration-150"
                                       aria-label="Conversation menu"
                                     >
                                       <span className="material-symbols-outlined text-[11px]">more_horiz</span>
@@ -610,16 +610,16 @@ export default function Sidebar({
             {/* ── Recent conversations ───────────────────────────── */}
             <div className="px-3 mt-2">
               <div className="flex items-center gap-0.5 px-1 py-0.5">
-                <span className="material-symbols-outlined text-[12px] text-black/45">history</span>
-                <span className="text-[10px] font-medium text-black/55 uppercase tracking-wider">
+                <span className="material-symbols-outlined text-[12px] text-black">history</span>
+                <span className="text-[10px] font-medium text-black uppercase tracking-wider">
                   Recent
                 </span>
               </div>
 
               {loadingConversations && conversations.length === 0 ? (
-                <div className="px-3 py-2 text-[11px] text-black/30">Loading…</div>
+                <div className="px-3 py-2 text-[11px] text-black">Loading…</div>
               ) : conversations.length === 0 ? (
-                <div className="px-3 py-2 text-[11px] text-black/25 italic">
+                <div className="px-3 py-2 text-[11px] text-black italic">
                   Start a conversation to see it here
                 </div>
               ) : (
@@ -630,7 +630,7 @@ export default function Sidebar({
                       className={`relative group flex items-center px-2 py-1.5 rounded-lg cursor-pointer transition-colors duration-150 [backface-visibility:hidden] ${
                         conv.id === currentConversationId
                           ? 'bg-black/5 text-black'
-                          : 'text-black/50 hover:bg-black/[0.03] hover:text-black/70'
+                          : 'text-black hover:bg-black/[0.03] hover:text-black'
                       }`}
                       onClick={() => onSelectConversation?.(conv.id)}
                     >
@@ -638,7 +638,7 @@ export default function Sidebar({
                       <div className="flex-shrink-0 relative">
                         <button
                           onClick={(e) => { e.stopPropagation(); setKebabOpenId(kebabOpenId === conv.id ? null : conv.id); setKebabProjectId(null); }}
-                          className="opacity-60 sm:opacity-0 group-hover:opacity-100 w-5 h-5 rounded flex items-center justify-center text-black/20 hover:text-black/50 hover:bg-black/5 transition-all duration-150"
+                          className="opacity-60 sm:opacity-0 group-hover:opacity-100 w-5 h-5 rounded flex items-center justify-center text-black hover:text-black hover:bg-black/5 transition-all duration-150"
                           aria-label="Conversation menu"
                         >
                           <span className="material-symbols-outlined text-[12px]">more_horiz</span>
@@ -674,7 +674,7 @@ export default function Sidebar({
               className="w-full flex items-center gap-2.5 px-2 py-2 rounded-lg hover:bg-black/[0.03] active:scale-[0.99] transition-all duration-150"
             >
               {/* Avatar */}
-              <span className="w-7 h-7 rounded-full bg-black/10 flex items-center justify-center text-[11px] font-medium text-black/50 flex-shrink-0">
+              <span className="w-7 h-7 rounded-full bg-black/10 flex items-center justify-center text-[11px] font-medium text-black flex-shrink-0">
                 {user.user_metadata?.avatar_url ? (
                   <img src={user.user_metadata.avatar_url} alt="" className="w-full h-full rounded-full object-cover" />
                 ) : (
@@ -682,10 +682,10 @@ export default function Sidebar({
                 )}
               </span>
               {/* Email */}
-              <span className="text-xs text-black/50 truncate flex-1 text-left">
+              <span className="text-xs text-black truncate flex-1 text-left">
                 {user.email}
               </span>
-              <span className="material-symbols-outlined text-[14px] text-black/25 flex-shrink-0">
+              <span className="material-symbols-outlined text-[14px] text-black flex-shrink-0">
                 {userMenuOpen ? 'expand_less' : 'expand_more'}
               </span>
             </button>
@@ -697,13 +697,13 @@ export default function Sidebar({
                 style={{ animation: 'scale-in 0.1s var(--ease-out-expo) both', transformOrigin: 'bottom left' }}
               >
                 <div className="px-3 py-2 border-b border-black/5">
-                  <div className="text-xs font-medium text-black/70 truncate">
+                  <div className="text-xs font-medium text-black truncate">
                     {user.user_metadata?.full_name || user.email?.split('@')[0] || 'User'}
                   </div>
-                  <div className="text-[10px] text-black/35 truncate">{user.email}</div>
+                  <div className="text-[10px] text-black truncate">{user.email}</div>
                 </div>
                 <button
-                  className="w-full text-left px-3 py-1.5 text-[11px] text-black/60 hover:bg-black/5 transition-colors duration-100"
+                  className="w-full text-left px-3 py-1.5 text-[11px] text-black hover:bg-black/5 transition-colors duration-100"
                 >
                   Settings
                 </button>
@@ -720,4 +720,6 @@ export default function Sidebar({
       )}
     </aside>
   );
-}
+});
+
+export default Sidebar;

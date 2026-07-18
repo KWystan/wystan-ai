@@ -16,12 +16,12 @@ function CodePanel({ language, codeString, children }) {
   return (
     <div className="relative group my-2 rounded-lg overflow-hidden border border-black/10 bg-[#fafafa]">
       <div className="flex items-center justify-between px-3 py-1 bg-black/[0.03] border-b border-black/8">
-        <span className="text-[10px] font-mono text-black/35 uppercase tracking-wider">
+        <span className="text-[10px] font-mono text-black uppercase tracking-wider">
           {language || 'code'}
         </span>
         <button
           onClick={copyCode}
-          className="flex items-center gap-1 text-[10px] text-black/30 hover:text-black/60 transition-colors duration-100"
+          className="flex items-center gap-1 text-[10px] text-black hover:text-black transition-colors duration-100"
         >
           <span className="material-symbols-outlined text-[12px]">{copied ? 'check' : 'content_copy'}</span>
           {copied ? 'Copied' : 'Copy'}
@@ -54,7 +54,7 @@ function renderMessageText(text) {
           }
           return (
             <code
-              className="bg-black/[0.06] text-black/80 text-[13px] px-1 py-0.5 rounded font-mono"
+              className="bg-black/[0.06] text-black text-[13px] px-1 py-0.5 rounded font-mono"
               {...props}
             >
               {children}
@@ -65,11 +65,11 @@ function renderMessageText(text) {
         ul: ({ children }) => <ul className="my-0.5 pl-4 space-y-0.5">{children}</ul>,
         ol: ({ children }) => <ol className="my-0.5 pl-4 space-y-0.5">{children}</ol>,
         li: ({ children }) => <li className="my-0.5 leading-normal">{children}</li>,
-        h1: ({ children }) => <h1 className="text-xl font-bold text-black/85 mt-2 mb-1">{children}</h1>,
-        h2: ({ children }) => <h2 className="text-lg font-bold text-black/85 mt-1.5 mb-0.5">{children}</h2>,
-        h3: ({ children }) => <h3 className="text-base font-bold text-black/85 mt-1 mb-0.5">{children}</h3>,
+        h1: ({ children }) => <h1 className="text-xl font-bold text-black mt-2 mb-1">{children}</h1>,
+        h2: ({ children }) => <h2 className="text-lg font-bold text-black mt-1.5 mb-0.5">{children}</h2>,
+        h3: ({ children }) => <h3 className="text-base font-bold text-black mt-1 mb-0.5">{children}</h3>,
         blockquote: ({ children }) => (
-          <blockquote className="border-l-2 border-black/15 pl-3 my-1 text-black/60 italic">{children}</blockquote>
+          <blockquote className="border-l-2 border-black/15 pl-3 my-1 text-black italic">{children}</blockquote>
         ),
         a: ({ href, children }) => (
           <a href={href} target="_blank" rel="noopener noreferrer" className="text-blue-600 underline decoration-blue-300 hover:decoration-blue-600 transition-colors duration-150">
@@ -562,7 +562,7 @@ export default function ProjectPage() {
           <div className="px-4 h-12 flex items-center">
             <button
               onClick={() => setSidebarOpen(true)}
-              className="md:hidden w-8 h-8 rounded-lg border border-black/12 flex items-center justify-center text-black/50 hover-gate:border-black/35 hover-gate:text-black active:scale-[0.97] transition-all duration-150 [backface-visibility:hidden]"
+              className="md:hidden w-8 h-8 rounded-lg border border-black/12 flex items-center justify-center text-black hover-gate:border-black/35 hover-gate:text-black active:scale-[0.97] transition-all duration-150 [backface-visibility:hidden]"
               aria-label="Open sidebar"
             >
               <span className="material-symbols-outlined text-[18px]">menu</span>
@@ -587,18 +587,18 @@ export default function ProjectPage() {
               <div className="flex flex-col items-center justify-center min-h-[50vh] text-center">
                 <span className="material-symbols-outlined text-3xl text-red-300 mb-3">folder_off</span>
                 <p className="text-sm text-red-500 mb-1">Failed to load project</p>
-                <p className="text-xs text-black/40 mb-4">{error}</p>
-                <Link to="/chat" className="text-xs underline text-black/40 hover:text-black transition-colors duration-150">
+                <p className="text-xs text-black mb-4">{error}</p>
+                <Link to="/chat" className="text-xs underline text-black hover:text-black transition-colors duration-150">
                   Back to chat
                 </Link>
               </div>
             ) : !project && showLanding ? (
               /* ── Not found ──────────────────────────────────── */
               <div className="flex flex-col items-center justify-center min-h-[50vh] text-center">
-                <span className="material-symbols-outlined text-3xl text-black/20 mb-3">folder_off</span>
-                <p className="text-sm text-black/50 mb-1">Project not found</p>
-                <p className="text-xs text-black/30 mb-4">This project may have been deleted.</p>
-                <Link to="/chat" className="text-xs underline text-black/40 hover:text-black transition-colors duration-150">
+                <span className="material-symbols-outlined text-3xl text-black mb-3">folder_off</span>
+                <p className="text-sm text-black mb-1">Project not found</p>
+                <p className="text-xs text-black mb-4">This project may have been deleted.</p>
+                <Link to="/chat" className="text-xs underline text-black hover:text-black transition-colors duration-150">
                   Back to chat
                 </Link>
               </div>
@@ -610,25 +610,25 @@ export default function ProjectPage() {
                   style={{ animation: 'fade-up 0.4s var(--ease-out-expo) both' }}
                 >
                   <div className="w-14 h-14 rounded-2xl border border-black/10 flex items-center justify-center mb-4">
-                    <span className="material-symbols-outlined text-2xl text-black/30">folder</span>
+                    <span className="material-symbols-outlined text-2xl text-black">folder</span>
                   </div>
                   <h2 className="font-display text-2xl font-bold text-black mb-1">
                     {project?.name}
                   </h2>
-                  <p className="text-sm text-black/40 max-w-sm">
+                  <p className="text-sm text-black max-w-sm">
                     Ask a question or click a past conversation.
                   </p>
                 </div>
 
                 {/* ── Conversation list ────────────────────────── */}
                 <div className="mt-6">
-                  <h3 className="text-[11px] font-medium text-black/40 uppercase tracking-wider mb-3 px-1">
+                  <h3 className="text-[11px] font-medium text-black uppercase tracking-wider mb-3 px-1">
                     Conversations
                   </h3>
                   {conversations.length === 0 ? (
                     <div className="px-4 py-8 text-center">
-                      <span className="material-symbols-outlined text-2xl text-black/15 mb-2">forum</span>
-                      <p className="text-xs text-black/30">No conversations yet. Start one above.</p>
+                      <span className="material-symbols-outlined text-2xl text-black mb-2">forum</span>
+                      <p className="text-xs text-black">No conversations yet. Start one above.</p>
                     </div>
                   ) : (
                     <div className="space-y-1">
@@ -636,9 +636,9 @@ export default function ProjectPage() {
                         <button
                           key={conv.id}
                           onClick={() => navigate(`/chat/${conv.id}`)}
-                          className="w-full text-left px-3.5 py-2.5 rounded-xl border border-black/8 text-sm text-black/60 hover-gate:border-black/20 hover-gate:text-black active:scale-[0.99] transition-all duration-150 flex items-center gap-3 [backface-visibility:hidden]"
+                          className="w-full text-left px-3.5 py-2.5 rounded-xl border border-black/8 text-sm text-black hover-gate:border-black/20 hover-gate:text-black active:scale-[0.99] transition-all duration-150 flex items-center gap-3 [backface-visibility:hidden]"
                         >
-                          <span className="material-symbols-outlined text-[16px] text-black/25 flex-shrink-0">chat</span>
+                          <span className="material-symbols-outlined text-[16px] text-black flex-shrink-0">chat</span>
                           <span className="truncate">{conv.title}</span>
                         </button>
                       ))}
@@ -657,14 +657,14 @@ export default function ProjectPage() {
                       alt={generatedImage.prompt}
                       className="max-w-full rounded-xl border border-black/10 shadow-sm"
                     />
-                    <p className="text-xs text-black/40 text-center max-w-md">{generatedImage.prompt}</p>
+                    <p className="text-xs text-black text-center max-w-md">{generatedImage.prompt}</p>
                   </div>
                 )}
 
                 {/* Messages */}
                 {messages.length === 0 && !generatedImage ? (
                   <div className="flex flex-col items-center justify-center min-h-[30vh] text-center">
-                    <p className="text-sm text-black/30">Type a message to start chatting in this project.</p>
+                    <p className="text-sm text-black">Type a message to start chatting in this project.</p>
                   </div>
                 ) : (
                   messages.map((msg, i) => (
@@ -696,7 +696,7 @@ export default function ProjectPage() {
                             {msg.content ? (
                               renderMessageText(msg.content)
                             ) : isLoading && i === messages.length - 1 ? (
-                              <span className="text-black/40 text-sm">Thinking…</span>
+                              <span className="text-black text-sm">Thinking…</span>
                             ) : null}
                           </div>
                         )}
@@ -719,7 +719,7 @@ export default function ProjectPage() {
                     <div key={`files-${i}`} className="flex justify-end -mt-2">
                       <div className="max-w-[85%] sm:max-w-[75%] flex flex-wrap gap-1.5">
                         {msg.files.map((f, j) => (
-                          <span key={j} className="text-[10px] text-black/35 bg-black/[0.03] px-2 py-0.5 rounded-full truncate max-w-[140px]">
+                          <span key={j} className="text-[10px] text-black bg-black/[0.03] px-2 py-0.5 rounded-full truncate max-w-[140px]">
                             {f.filename || f.name}
                           </span>
                         ))}
@@ -751,7 +751,7 @@ export default function ProjectPage() {
                   <button
                     onClick={handleOpenModeMenu}
                     disabled={isUploading}
-                    className="absolute left-2 w-8 h-8 rounded-lg flex items-center justify-center text-black/50 hover:text-black disabled:text-black/20 active:scale-[0.97] transition-all duration-150 z-10"
+                    className="absolute left-2 w-8 h-8 rounded-lg flex items-center justify-center text-black hover:text-black disabled:text-black active:scale-[0.97] transition-all duration-150 z-10"
                     aria-label="Add mode"
                   >
                     <span className={`material-symbols-outlined text-[18px] ${isUploading ? 'animate-spin' : ''}`}>
@@ -767,21 +767,21 @@ export default function ProjectPage() {
                       >
                         <button
                           onClick={() => { setModeMenuOpen(false); fileInputRef.current?.click(); }}
-                          className="w-full text-left px-3.5 py-1.5 text-xs text-black/55 hover-gate:text-black hover-gate:bg-black/[0.03] transition-colors duration-150 flex items-center gap-2.5"
+                          className="w-full text-left px-3.5 py-1.5 text-xs text-black hover-gate:text-black hover-gate:bg-black/[0.03] transition-colors duration-150 flex items-center gap-2.5"
                         >
                           <span className="material-symbols-outlined text-[16px]">attach_file</span>
                           Attach file
                         </button>
                         <button
                           onClick={() => { setModeMenuOpen(false); setActiveMode('generate'); textareaRef.current?.focus(); }}
-                          className="w-full text-left px-3.5 py-1.5 text-xs text-black/55 hover-gate:text-black hover-gate:bg-black/[0.03] transition-colors duration-150 flex items-center gap-2.5"
+                          className="w-full text-left px-3.5 py-1.5 text-xs text-black hover-gate:text-black hover-gate:bg-black/[0.03] transition-colors duration-150 flex items-center gap-2.5"
                         >
                           <span className="material-symbols-outlined text-[16px]">image</span>
                           Generate
                         </button>
                         <button
                           onClick={() => { setModeMenuOpen(false); setActiveMode('search'); textareaRef.current?.focus(); }}
-                          className="w-full text-left px-3.5 py-1.5 text-xs text-black/55 hover-gate:text-black hover-gate:bg-black/[0.03] transition-colors duration-150 flex items-center gap-2.5"
+                          className="w-full text-left px-3.5 py-1.5 text-xs text-black hover-gate:text-black hover-gate:bg-black/[0.03] transition-colors duration-150 flex items-center gap-2.5"
                         >
                           <span className="material-symbols-outlined text-[16px]">travel_explore</span>
                           Search
@@ -807,12 +807,12 @@ export default function ProjectPage() {
                     maxLength={10000}
                     rows={1}
                     disabled={isLoading || isSending}
-                    className={`w-full bg-white text-black text-sm rounded-xl px-4 py-2.5 resize-none overflow-y-auto hide-scrollbar outline-none placeholder:text-black/30 border border-black/10 focus:border-black/25 transition-all duration-150 disabled:opacity-50 leading-relaxed ${
+                    className={`w-full bg-white text-black text-sm rounded-xl px-4 py-2.5 resize-none overflow-y-auto hide-scrollbar outline-none placeholder:text-black border border-black/10 focus:border-black/25 transition-all duration-150 disabled:opacity-50 leading-relaxed ${
                       activeMode ? 'pl-36' : 'pl-12'
                     }`}
                   />
                   {attachedFiles.length > 0 && (
-                    <div className="absolute bottom-1 left-3 flex items-center gap-1 text-[10px] text-black/40 pointer-events-none max-w-[60%]">
+                    <div className="absolute bottom-1 left-3 flex items-center gap-1 text-[10px] text-black pointer-events-none max-w-[60%]">
                       <span className="material-symbols-outlined text-[12px]">attach_file</span>
                       <span className="truncate">{attachedFiles.length} file{attachedFiles.length > 1 ? 's' : ''}</span>
                     </div>
