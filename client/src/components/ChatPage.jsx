@@ -733,7 +733,8 @@ export default function ChatPage() {
     setError(null);
     setAttachedFiles([]);
 
-    /* ── Web search (if /search mode) ─────────────────────── */
+    /* ── Web search (if /search mode) — feed to LLM, don't show ── */
+    let searchContext = null;
     if (searchText) {
       setLoadingPhase('searching');
       try {
@@ -749,12 +750,7 @@ export default function ChatPage() {
               `${i + 1}. ${r.title}\n   ${(r.content || '').slice(0, 500)}`
             );
             const summary = searchData.answer ? `\n\nSummary: ${searchData.answer}` : '';
-            const searchMsg = {
-              role: 'user',
-              content: `[Web search results for "${searchText}"]\n${lines.join('\n')}${summary}`,
-            };
-            updated = [...updated.slice(0, -1), searchMsg, userMsg];
-            setMessages(updated);
+            searchContext = `[Web search results for "${searchText}"]\n${lines.join('\n')}${summary}`;
           }
         }
       } catch (err) {
@@ -770,6 +766,11 @@ export default function ChatPage() {
       /* Build the API payload — replace display content with the
          full payload that includes actual file text for the LLM. */
       const apiMessages = [...updated];
+      // Inject silent search context as a user message before the real one,
+      // so the LLM gets it without it appearing in the chat display
+      if (searchContext) {
+        apiMessages.push({ role: 'user', content: searchContext });
+      }
       if (attachedFiles.length > 0) {
         const lastIdx = apiMessages.length - 1;
         apiMessages[lastIdx] = {
