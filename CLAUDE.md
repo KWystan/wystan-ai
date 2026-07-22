@@ -46,7 +46,9 @@ No test runner is configured in this repo. Env setup: copy `server/.env.example`
 | `POST /api/chat-full` | **SSE streaming, routed by model id** — ids containing `/` (e.g. `minimaxai/minimax-m3`) hit NVIDIA NIM; others hit OpenCode. Last 20 messages as context. Omits the system prompt when multimodal content blocks are present. |
 | `POST /api/upload` | Multipart file upload via multer (10 MB cap, memory storage). Processes images → base64, PDFs → text + page screenshots, DOCX/PPTX/XLSX/CSV/TSV → extracted text, code files → UTF-8 with language tag. Content truncated at 50,000 chars. |
 | `POST /api/generate` | Image generation via NVIDIA Flux 2 (`black-forest-labs/flux.2-klein-4b`). Accepts `{ prompt, width, height, seed, steps }`. |
-| `POST /api/search` | Web search via Tavily API. Accepts `{ query }`, returns up to 5 results with answer summary. |
+| `POST /api/search` | Web search via Tavily API. Accepts `{ query }`, returns up to 5 results with answer summary. Results cached in-memory for 5 minutes. |
+| `POST /api/flashcards` | Non-streaming flashcard generation via OpenCode. Accepts `{ text }`, returns `{ cards: [{ question, answer }] }`. Uses strict JSON parsing with code-fence fallback. Max 15K chars input. |
+| `POST /api/quiz` | Non-streaming quiz generation via OpenCode. Accepts `{ text, type, count, difficulty }`. Returns `{ questions: [...] }`. Validates each question's structure per type. Max 15K chars input. |
 | `GET  /api/health` | `{status:'OK', message:'Server is running!'}` |
 
 ### Server-side auth & data routes (Supabase)
@@ -73,6 +75,37 @@ Auth middleware: `optionalAuth` decorates `req.user`/`req.supabase` if a Bearer 
 | `/chat/:conversationId` | ChatPage | Loads saved messages from Supabase |
 | `/project/:id` | ProjectPage | Project home with conversation list + new-chat input |
 | `/generate` | GeneratePage | Image generation form |
+| `/learn` | LearnPage | Learning tools hub (25 tools: Flashcards, Quiz active; others coming-soon) |
+| `/learn/flashcards` | FlashcardsPage | AI flashcard generation from pasted text or uploaded files |
+| `/learn/quiz` | QuizPage | AI quiz generator: config → play → results |
+
+### Client-side OAuth vs server-side OAuth
+
+There are **two OAuth flows**:
+
+1. **Client-side (primary, `client/src/lib/auth.js`)**: Uses `supabase.auth.signInWithOAuth({ provider: 'google' })` with PKCE handled via cookies. Tokens are stored in localStorage (`wystan_access_token`, `wystan_refresh_token`). After redirect, `parseOAuthTokensFromHash()` reads tokens from the URL hash. This is the main Google sign-in path.
+
+2. **Server-side (fallback, `server/routes/auth.js`)**: The `POST /api/auth/oauth` endpoint initiates a server-driven OAuth flow, returning an authorization URL. The callback at `/api/auth/oauth/callback` exchanges the PKCE code and redirects to the client with `#access_token=...&refresh_token=...`.
+
+All authenticated API calls use the `authFetch()` wrapper from `client/src/lib/auth.js`, which reads the stored token and adds `Authorization: Bearer`.
+
+### Font system
+
+Fonts are self-hosted via the `geist` npm package (copied to `client/public/fonts/`) and `@fontsource/source-serif-4`:
+
+| CSS Variable | Font | Source |
+|---|---|---|
+| `--font-sans` | Geist (variable) | `/fonts/Geist-Variable.woff2` |
+| `--font-mono` | Geist Mono (variable) | `/fonts/GeistMono-Variable.woff2` |
+| `--font-display` | Geist Pixel (square) | `/fonts/GeistPixel-Square.woff2` |
+| `--font-serif` | Source Serif 4 | npm `@fontsource/source-serif-4` |
+
+### Vite build chunking
+
+`client/vite.config.js` defines manual `rollupOptions.output.manualChunks` for three vendor bundles:
+- `vendor-react` — react-dom, react, react-router
+- `vendor-markdown` — react-markdown, remark-*
+- `vendor-supabase` — @supabase/supabase-js
 
 ### Supabase integration
 
@@ -93,9 +126,19 @@ Auth middleware: `optionalAuth` decorates `req.user`/`req.supabase` if a Bearer 
 
 - **Sidebar** (`client/src/components/Sidebar.jsx`, ~720 lines) — rendered inside ChatPage and ProjectPage. Logo, New Chat button, Generate link. Logged-in: collapsible Projects section with inline creation, nested conversations, Recent section for unassigned convos, kebab menus with rename/move/delete. Logged-out: "Sign in" CTA and register link. Responsive: fixed overlay on mobile, static on desktop.
 
-- **ProjectPage** (`client/src/components/ProjectPage.jsx`, ~660 lines) — project landing at `/project/:id`. Shows project name, conversation list, text input for new conversations, full chat functionality inline (streaming, file upload, markdown rendering with code blocks). Uses `authFetch` for all API calls.
+- **ProjectPage** (`client/src/components/ProjectPage.jsx`, ~850 lines) — project landing at `/project/:id`. Shows project name, conversation list, text input for new conversations, full chat functionality inline (streaming, file upload, markdown rendering with code blocks). Uses `authFetch` for all API calls.
 
-- **GeneratePage** (`client/src/components/GeneratePage.jsx`, ~200+ lines) — image generation at `/generate`. Form with prompt, width/height/steps selects, batch count selector. Supports inspiration image upload + AI style analysis (sends image to MiniMax M3 via `/api/chat-full` for style description, then uses that as prompt context). Generated images displayed with download links.
+- **GeneratePage** (`client/src/components/GeneratePage.jsx`, ~670 lines) — image generation at `/generate`. Form with prompt, width/height/steps selects, batch count selector. Supports inspiration image upload + AI style analysis (sends image to MiniMax M3 via `/api/chat-full` for style description, then uses that as prompt context). Generated images displayed with download links.
+
+- **LearnPage** (`client/src/components/LearnPage.jsx`, ~375 lines) — learning tools hub at `/learn`. 25-tool card grid (Flashcards and Quiz active; ChatGPT with PDF, AI Tutor, Essay Grader, etc. as coming-soon).
+
+- **FlashcardsPage** (`client/src/components/FlashcardsPage.jsx`, ~460 lines) — full flashcard generation flow at `/learn/flashcards`. Text input or file upload, generation via `/api/flashcards`, study-mode UI (flip, rate, cycle through cards), print and export.
+
+- **Layout** (`client/src/components/Layout.jsx`, ~65 lines) — wraps pages that need a Sidebar + mobile hamburger header. Renders `<Sidebar>` with mobile state management and `<Outlet>` for content. Used by the Learn tools; ChatPage/ProjectPage/GeneratePage render Sidebar directly.
+
+- **Noise** (`client/src/components/Noise.jsx`, ~75 lines) — animated canvas grain overlay component. Used as background texture in the app.
+
+- **QuizPage** (`client/src/components/QuizPage.jsx`) — orchestrator for the quiz generator at `/learn/quiz`. Delegates to three sub-components via `useQuiz` hook state machine: `QuizConfig` (input + settings), `QuizPlay` (question-by-question with feedback), `QuizResults` (score + review + retry). Sub-components: `QuizConfig.jsx`, `QuizPlay.jsx`, `QuizResults.jsx`. Hook: `client/src/hooks/useQuiz.js`.
 
 ### Streaming contract (frontend ↔ backend)
 

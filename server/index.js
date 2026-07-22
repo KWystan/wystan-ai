@@ -210,7 +210,10 @@ app.post('/api/upload', upload.single('file'), async (req, res) => {
           }
           const parser = new PDFParse({ data: buffer });
           // Extract text — wrap in try/catch so a text failure doesn't lose screenshots
-          try { response.content = await parser.getText(); } catch (e) {
+          try {
+            const pdfResult = await parser.getText();
+            response.content = pdfResult.text || pdfResult;
+          } catch (e) {
             console.error('PDF text extraction failed:', e.message);
             response.content = null;
           }
@@ -585,6 +588,275 @@ app.post('/api/search', async (req, res) => {
   } catch (err) {
     console.error('Search error:', err);
     res.status(500).json({ error: 'Something went wrong.' });
+  }
+});
+
+
+// ── Flashcard generation ───────────
+const FLASHCARD_SYSTEM_PROMPT = `You are a flashcard generator. Given study material or a topic, extract the key concepts and generate question-and-answer flashcards.
+
+Rules:
+- Return ONLY a valid JSON array — no markdown, no code fences, no other text.
+- Each flashcard must have a "question" and an "answer" field.
+- Generate between 5 and 10 flashcards.
+- Questions should test understanding, not just recall.
+- Answers should be concise but complete.
+- If the material is very short or vague, generate flashcards that cover the core concepts.
+- Use clear, study-friendly language.
+
+Example:
+[{"question": "What is the function of mitochondria?", "answer": "Mitochondria are the powerhouses of the cell, generating ATP through cellular respiration."}];`
+
+/* POST /api/flashcards
+ * Non-streaming flashcard generation using the cheapest available model.
+ * Body: { text: "..." } — raw material from text input or file extraction.
+ * Returns: { cards: [{ question, answer }] } */
+app.post('/api/flashcards', async (req, res) => {
+  try {
+    const { text: sourceText } = req.body;
+
+    if (!sourceText || typeof sourceText !== 'string' || !sourceText.trim()) {
+      return res.status(400).json({ error: 'Text content is required.' });
+    }
+
+    // Truncate to prevent excessive token use
+    const truncatedText = sourceText.slice(0, 15000);
+
+    const messages = [
+      { role: 'system', content: FLASHCARD_SYSTEM_PROMPT },
+      { role: 'user', content: "Generate flashcards from the following material:\n\n" + truncatedText },
+    ];
+
+    const body = {
+      model: CHAT_MODEL,
+      messages,
+      max_tokens: 4096,
+      temperature: 0.7,
+      top_p: 0.95,
+      stream: false,
+    };
+
+    const upstreamUrl = `${OPENCODE_BASE_URL}/chat/completions`;
+    const apiKey = OPENCODE_API_KEY;
+
+    if (!apiKey) {
+      return res.status(503).json({ error: 'Flashcard generation is not configured.' });
+    }
+
+    const apiRes = await fetch(upstreamUrl, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${apiKey}`,
+      },
+      body: JSON.stringify(body),
+    });
+
+    if (!apiRes.ok) {
+      const errText = await apiRes.text();
+      console.error('Flashcard API error:', apiRes.status, errText);
+      let details = 'Generation service returned an error.';
+      try { const parsed = JSON.parse(errText); details = parsed.error?.message || parsed.message || parsed.error || details; } catch { details = errText.slice(0, 200) || details; }
+      return res.status(502).json({ error: details });
+    }
+
+    const data = await apiRes.json();
+    const reply = data.choices?.[0]?.message?.content || '';
+
+    if (!reply) {
+      return res.status(502).json({ error: 'Empty response from AI service.' });
+    }
+
+    // Parse the JSON response — the model should return a pure JSON array
+    let cards;
+    try {
+      cards = JSON.parse(reply);
+    } catch {
+      // Try to extract JSON from markdown code fence
+      const match = reply.match(/`(?:json)?\s*([\s\S]*?)`/);
+      if (match) {
+        try { cards = JSON.parse(match[1]); } catch { cards = null; }
+      } else {
+        cards = null;
+      }
+    }
+
+    if (!cards || !Array.isArray(cards) || cards.length === 0) {
+      return res.status(422).json({ error: 'We couldn\'t generate flashcards from that content. Try adjusting the text or providing a clearer topic.' });
+    }
+
+    // Validate each card has the required fields
+    cards = cards.filter(c => c.question && c.answer).map(c => ({
+      question: c.question,
+      answer: c.answer,
+    }));
+
+    if (cards.length === 0) {
+      return res.status(422).json({ error: 'Generated cards were malformed. Try providing clearer content.' });
+    }
+
+    res.json({ cards });
+  } catch (err) {
+    console.error('Flashcard error:', err);
+    res.status(500).json({ error: 'Something went wrong generating flashcards.' });
+  }
+});
+
+// ── Quiz generation ──────────────────────────────────────────────
+
+const QUIZ_SYSTEM_PROMPT = `You are a quiz generator. Generate a structured quiz based on the provided material.
+
+CRITICAL: Return ONLY a valid JSON object with a "questions" array. No markdown, no code fences, no other text.
+
+Each question object must match one of these exact shapes:
+
+1. Multiple choice:
+{ "type": "multiple", "question": "What is the capital of France?", "options": ["Berlin", "Madrid", "Paris", "Rome"], "answer": 2, "explanation": "Paris has been the capital of France since the 10th century." }
+- "answer" is the 0-based index of the correct option
+- ALWAYS provide exactly 4 options
+- Distractors must be plausible but incorrect
+
+2. True/False:
+{ "type": "truefalse", "question": "The Great Wall of China is visible from space.", "answer": false, "explanation": "This is a common myth. It is not visible from orbit without magnification." }
+- "answer" is true or false (boolean, not string)
+
+3. Fill in the blank:
+{ "type": "fillblank", "question": "The chemical symbol for gold is ___", "answer": "Au", "explanation": "Au comes from the Latin word 'aurum' meaning gold." }
+- question text MUST contain ___ where the blank goes
+- answer is the exact text that fills the blank
+
+Difficulty guidelines:
+- easy: Basic recall, simple vocabulary, obvious distractors
+- medium: Application-level understanding, plausible distractors
+- hard: Analysis/synthesis, subtle distractors, multi-step reasoning`;
+
+/* POST /api/quiz
+ * Non-streaming quiz generation using OpenCode.
+ * Body: { text, type, count, difficulty }
+ * Returns: { questions: [...] } */
+app.post('/api/quiz', async (req, res) => {
+  try {
+    const { text: sourceText, type = 'mixed', count = 10, difficulty = 'medium' } = req.body;
+
+    if (!sourceText || typeof sourceText !== 'string' || !sourceText.trim()) {
+      return res.status(400).json({ error: 'Text content is required.' });
+    }
+
+    const questionCount = Math.max(5, Math.min(20, parseInt(count, 10) || 10));
+    const validTypes = ['multiple', 'truefalse', 'fillblank', 'mixed'];
+    if (!validTypes.includes(type)) {
+      return res.status(400).json({ error: 'Invalid quiz type.' });
+    }
+
+    const truncatedText = sourceText.slice(0, 15000);
+
+    const typeInstruction = type === 'mixed'
+      ? `Generate a mix of all three question types distributed as evenly as possible across the ${questionCount} questions.`
+      : `All questions MUST be type "${type}".`;
+
+    const diffGuide = {
+      easy: 'Basic recall with simple vocabulary and clearly wrong distractors.',
+      medium: 'Application-level understanding with plausible distractors.',
+      hard: 'Analysis and synthesis with subtle distractors and multi-step reasoning.',
+    };
+
+    const prompt = `Generate a quiz with exactly ${questionCount} questions at "${difficulty}" difficulty.
+
+${typeInstruction}
+
+${diffGuide[difficulty] || diffGuide.medium}
+
+Material to generate questions from:
+${truncatedText}`;
+
+    const messages = [
+      { role: 'system', content: QUIZ_SYSTEM_PROMPT },
+      { role: 'user', content: prompt },
+    ];
+
+    const body = {
+      model: CHAT_MODEL,
+      messages,
+      max_tokens: 8192,
+      temperature: 0.7,
+      top_p: 0.95,
+      stream: false,
+    };
+
+    const upstreamUrl = `${OPENCODE_BASE_URL}/chat/completions`;
+    const apiKey = OPENCODE_API_KEY;
+
+    if (!apiKey) {
+      return res.status(503).json({ error: 'Quiz generation is not configured.' });
+    }
+
+    const apiRes = await fetch(upstreamUrl, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${apiKey}` },
+      body: JSON.stringify(body),
+    });
+
+    if (!apiRes.ok) {
+      const errText = await apiRes.text();
+      console.error('Quiz API error:', apiRes.status, errText);
+      let details = 'Generation service returned an error.';
+      try { const parsed = JSON.parse(errText); details = parsed.error?.message || parsed.message || parsed.error || details; } catch { details = errText.slice(0, 200) || details; }
+      return res.status(502).json({ error: details });
+    }
+
+    const data = await apiRes.json();
+    const reply = data.choices?.[0]?.message?.content || '';
+
+    if (!reply) {
+      return res.status(502).json({ error: 'Empty response from AI service.' });
+    }
+
+    // Parse JSON with code-fence fallback (same pattern as flashcards)
+    let parsed;
+    try {
+      parsed = JSON.parse(reply);
+    } catch {
+      const match = reply.match(/`(?:json)?\s*([\s\S]*?)`/);
+      if (match) {
+        try { parsed = JSON.parse(match[1]); } catch { parsed = null; }
+      } else {
+        parsed = null;
+      }
+    }
+
+    if (!parsed || !parsed.questions || !Array.isArray(parsed.questions)) {
+      return res.status(422).json({ error: 'We couldn\'t generate a valid quiz from that content. Try adjusting the text or providing a clearer topic.' });
+    }
+
+    // Validate each question has required fields for its type
+    const validQuestions = parsed.questions.filter(q => {
+      if (!q.type || !q.question || !q.explanation) return false;
+      if (q.type === 'multiple') {
+        return Array.isArray(q.options) && q.options.length === 4 && typeof q.answer === 'number' && q.answer >= 0 && q.answer <= 3;
+      }
+      if (q.type === 'truefalse') {
+        return typeof q.answer === 'boolean';
+      }
+      if (q.type === 'fillblank') {
+        return typeof q.answer === 'string' && q.answer.trim().length > 0;
+      }
+      return false;
+    }).map(q => ({
+      type: q.type,
+      question: q.question,
+      ...(q.options ? { options: q.options } : {}),
+      answer: q.answer,
+      explanation: q.explanation,
+    }));
+
+    if (validQuestions.length === 0) {
+      return res.status(422).json({ error: 'Generated quiz was malformed. Try providing clearer content.' });
+    }
+
+    res.json({ questions: validQuestions });
+  } catch (err) {
+    console.error('Quiz error:', err);
+    res.status(500).json({ error: 'Something went wrong generating the quiz.' });
   }
 });
 

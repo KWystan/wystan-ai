@@ -1,0 +1,8 @@
+﻿## Plan: Learn Page + Flashcard Generator
+
+### Steps:
+1. Update `App.jsx` — Add /learn and /learn/flashcards routes
+2. Create `LearnPage.jsx` — Tool selector grid (Flashcards active, rest "Coming Soon")
+3. Create `FlashcardsPage.jsx` — Input (text/file), generate, interactive flip deck
+4. Update `Sidebar.jsx` — Add "Learn" nav item between Generate and user section
+5. Update `server/index.js` — Add POST /api/flashcards endpoint + flashcard system prompt
