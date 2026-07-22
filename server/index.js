@@ -1,8 +1,12 @@
+require('dotenv').config();
+
 const express = require('express');
 const cors = require('cors');
 const fs = require('fs');
 const path = require('path');
 const multer = require('multer');
+const { uploadBlob, deleteBlob, isConfigured } = require('./blob');
+const { checkQuota, checkImageLimit, recordUsage, deleteUsage, getUsage } = require('./storage');
 let PDFParse;
 try {
   PDFParse = require('pdf-parse').PDFParse;
@@ -12,14 +16,14 @@ try {
 const mammoth = require('mammoth');
 const XLSX = require('xlsx');
 const AdmZip = require('adm-zip');
-require('dotenv').config();
 
 // ── Routes (Supabase-dependent; handle missing deps gracefully) ──
-let authRouter, conversationsRouter, projectsRouter, optionalAuth, requireAuth;
+let authRouter, conversationsRouter, projectsRouter, sourcesRouter, optionalAuth, requireAuth;
 try {
   authRouter = require('./routes/auth');
   conversationsRouter = require('./routes/conversations');
   projectsRouter = require('./routes/projects');
+  sourcesRouter = require('./routes/sources');
   const mw = require('./routes/middleware');
   optionalAuth = mw.optionalAuth;
   requireAuth = mw.requireAuth;
@@ -66,6 +70,10 @@ if (authRouter && conversationsRouter && projectsRouter) {
   app.use('/api/auth', authRouter);
   app.use('/api/conversations', optionalAuth, requireAuth, conversationsRouter);
   app.use('/api/projects', optionalAuth, requireAuth, projectsRouter);
+  if (sourcesRouter) {
+    app.use('/api/projects', optionalAuth, requireAuth, sourcesRouter);
+    console.log('Sources router loaded.');
+  }
 }
 
 // ── File upload config ─────────────────────────────────────────
@@ -156,7 +164,7 @@ function truncateContent(text) {
 }
 
 // ── File upload endpoint ─────────────────────────────────────────
-app.post('/api/upload', upload.single('file'), async (req, res) => {
+app.post('/api/upload', optionalAuth, upload.single('file'), async (req, res) => {
   try {
     if (!req.file) {
       return res.status(400).json({ error: 'No file uploaded' });
@@ -272,7 +280,52 @@ app.post('/api/upload', upload.single('file'), async (req, res) => {
       response.content = truncateContent(response.content);
     }
 
-    res.json(response);
+    /* -- Azure Blob Storage (logged-in users only) -------------------- */
+    if (req.user && isConfigured()) {
+      try {
+        const userId = req.user.id;
+        const folder = info.group === 'image' ? 'images' : 'docs';
+        const uniqueName = `${Date.now()}-${Math.random().toString(36).slice(2, 8)}-${originalname}`;
+
+        // Check quotas before upload
+        if (folder === 'images') {
+          const imgLimit = await checkImageLimit(userId);
+          if (!imgLimit.allowed) {
+            response.stored = false;
+            response.storageError = imgLimit.error;
+            return res.status(403).json({ ...response, error: imgLimit.error });
+          }
+        }
+
+        const quota = await checkQuota(userId, size);
+        if (!quota.allowed) {
+          response.stored = false;
+          response.storageError = quota.error;
+          return res.status(403).json({ ...response, error: quota.error });
+        }
+
+        // Upload to Azure
+        const { blobUrl } = await uploadBlob(userId, folder, uniqueName, buffer, mimetype);
+
+        // Record in Supabase
+        await recordUsage(userId, blobUrl, originalname, info.group, size);
+
+        response.stored = true;
+        response.blobUrl = blobUrl;
+        response.storage = {
+          usedBytes: quota.usedBytes + size,
+          remainingBytes: quota.remainingBytes - size,
+        };
+      } catch (azureErr) {
+        // Azure failure is non-blocking � file is still processed ephemerally
+        console.error('[Upload] Azure storage failed (non-blocking):', azureErr.message);
+        response.stored = false;
+        response.storageError = 'Cloud storage unavailable. File processed in-memory.';
+      }
+    } else {
+      response.stored = false;
+    }
+res.json(response);
   } catch (err) {
     console.error('Upload error:', err);
     res.status(500).json({ error: 'Upload failed' });
@@ -871,6 +924,31 @@ app.use((err, req, res, next) => {
   next(err);
 });
 
+// -- Storage endpoints --------------------------------------------------
+app.delete('/api/upload', requireAuth, async (req, res) => {
+  try {
+    const { blobUrl } = req.body;
+    if (!blobUrl) return res.status(400).json({ error: 'blobUrl is required' });
+
+    await deleteBlob(blobUrl);
+    await deleteUsage(blobUrl);
+
+    res.json({ success: true });
+  } catch (err) {
+    console.error('Delete error:', err);
+    res.status(500).json({ error: 'Failed to delete file' });
+  }
+});
+
+app.get('/api/storage/usage', requireAuth, async (req, res) => {
+  try {
+    const usage = await getUsage(req.user.id);
+    res.json(usage);
+  } catch (err) {
+    console.error('Storage usage error:', err);
+    res.status(500).json({ error: 'Failed to fetch storage usage' });
+  }
+});
 // Export for Vercel serverless
 module.exports = app;
 
@@ -880,3 +958,9 @@ if (require.main === module) {
     console.log(`Server is running on http://localhost:${PORT}`);
   });
 }
+
+
+
+
+
+

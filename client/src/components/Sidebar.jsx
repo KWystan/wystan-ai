@@ -425,7 +425,7 @@ const Sidebar = memo(function Sidebar({
         <button
           onClick={handleNewChat}
           disabled={actionLoading === 'new-chat'}
-          className="w-full flex items-center gap-1.5 px-2 py-1 rounded-md text-xs text-black hover-gate:text-black active:scale-[0.97] transition-all duration-150 disabled:opacity-40 disabled:cursor-default disabled:active:scale-100"
+          className="w-full flex items-center gap-2.5 px-2 py-1 rounded-md text-xs text-black hover-gate:text-black active:scale-[0.97] transition-all duration-150 disabled:opacity-40 disabled:cursor-default disabled:active:scale-100"
         >
           {actionLoading === 'new-chat' ? (
             <span className="material-symbols-outlined text-[13px] w-[13px] text-center animate-spin shrink-0">progress_activity</span>
@@ -444,7 +444,7 @@ const Sidebar = memo(function Sidebar({
       <div className="px-3 mt-px">
         <Link
           to="/generate"
-          className="w-full flex items-center gap-1.5 px-2 py-1 rounded-md text-xs text-black hover-gate:text-black active:scale-[0.97] transition-all duration-150"
+          className="w-full flex items-center gap-2.5 px-2 py-1 rounded-md text-xs text-black hover-gate:text-black active:scale-[0.97] transition-all duration-150"
         >
           <span className="w-[13px] flex items-center justify-center shrink-0">
             <svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 20 20" className="shrink-0">
@@ -459,7 +459,7 @@ const Sidebar = memo(function Sidebar({
       <div className="px-3 mt-px">
         <Link
           to="/learn"
-          className="w-full flex items-center gap-1.5 px-2 py-1 rounded-md text-xs text-black hover-gate:text-black active:scale-[0.97] transition-all duration-150"
+          className="w-full flex items-center gap-2.5 px-2 py-1 rounded-md text-xs text-black hover-gate:text-black active:scale-[0.97] transition-all duration-150"
         >
           <span className="w-[13px] flex items-center justify-center shrink-0">
             <svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 48 48" className="shrink-0">
@@ -747,4 +747,8 @@ const Sidebar = memo(function Sidebar({
 });
 
 export default Sidebar;
+
+
+
+
 

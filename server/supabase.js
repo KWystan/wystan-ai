@@ -19,9 +19,11 @@ if (!supabaseUrl || !supabaseSecretKey || !supabasePublishableKey) {
 }
 
 /** Admin client — bypasses RLS, uses the secret key. */
-const supabaseAdmin = createClient(supabaseUrl || '', supabaseSecretKey || '', {
-  auth: { autoRefreshToken: false, persistSession: false },
-});
+const supabaseAdmin = supabaseUrl && supabaseSecretKey
+  ? createClient(supabaseUrl, supabaseSecretKey, {
+      auth: { autoRefreshToken: false, persistSession: false },
+    })
+  : null;
 
 /**
  * Create a user-scoped client (respects RLS).

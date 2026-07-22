@@ -6,6 +6,7 @@
     "start": "node index.js"
   },
   "dependencies": {
+    "@azure/storage-blob": "^12.33.0",
     "@supabase/supabase-js": "^2.110.2",
     "adm-zip": "^0.6.0",
     "cors": "^2.8.5",
