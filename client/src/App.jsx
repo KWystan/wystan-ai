@@ -7,9 +7,10 @@ import ErrorBoundary from "./components/ErrorBoundary";
 const ChatPage = lazy(() => import("./components/ChatPage"));
 const GeneratePage = lazy(() => import("./components/GeneratePage"));
 const ProjectPage = lazy(() => import("./components/ProjectPage"));
-const LearnPage = lazy(() => import("./components/LearnPage"));
+const ToolsPage = lazy(() => import("./components/ToolsPage"));
 const FlashcardsPage = lazy(() => import("./components/FlashcardsPage"));
 const QuizPage = lazy(() => import("./components/QuizPage"));
+const StudyHubPage = lazy(() => import("./components/StudyHubPage"));
 
 function PageFallback() {
   return (
@@ -67,7 +68,8 @@ function App() {
             <Route path="/chat/:conversationId" element={<ChatPage />} />
             <Route path="/project/:id" element={<ProjectPage />} />
             <Route path="/generate" element={<GeneratePage />} />
-            <Route path="/learn" element={<LearnPage />} />
+            <Route path="/learn" element={<StudyHubPage />} />
+            <Route path="/tools" element={<ToolsPage />} />
             <Route path="/learn/flashcards" element={<FlashcardsPage />} />
             <Route path="/learn/quiz" element={<QuizPage />} />
           </Route>

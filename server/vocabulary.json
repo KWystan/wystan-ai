@@ -1,0 +1,1538 @@
+[
+  {
+    "term": "a",
+    "idf": 1.3
+  },
+  {
+    "term": "ability",
+    "idf": 4.0
+  },
+  {
+    "term": "about",
+    "idf": 2.0
+  },
+  {
+    "term": "abstract",
+    "idf": 4.0
+  },
+  {
+    "term": "acid",
+    "idf": 4.0
+  },
+  {
+    "term": "advantage",
+    "idf": 2.0
+  },
+  {
+    "term": "algebra",
+    "idf": 4.0
+  },
+  {
+    "term": "algorithm",
+    "idf": 2.0
+  },
+  {
+    "term": "allele",
+    "idf": 5.9
+  },
+  {
+    "term": "also",
+    "idf": 2.8
+  },
+  {
+    "term": "amount",
+    "idf": 2.0
+  },
+  {
+    "term": "amplitude",
+    "idf": 5.5
+  },
+  {
+    "term": "an",
+    "idf": 1.8
+  },
+  {
+    "term": "analysis",
+    "idf": 2.0
+  },
+  {
+    "term": "and",
+    "idf": 1.3
+  },
+  {
+    "term": "anthropology",
+    "idf": 4.0
+  },
+  {
+    "term": "appear",
+    "idf": 3.4
+  },
+  {
+    "term": "application",
+    "idf": 4.1
+  },
+  {
+    "term": "approach",
+    "idf": 2.0
+  },
+  {
+    "term": "are",
+    "idf": 1.4
+  },
+  {
+    "term": "area",
+    "idf": 2.0
+  },
+  {
+    "term": "argument",
+    "idf": 2.1
+  },
+  {
+    "term": "as",
+    "idf": 1.5
+  },
+  {
+    "term": "aspect",
+    "idf": 2.1
+  },
+  {
+    "term": "assessment",
+    "idf": 4.1
+  },
+  {
+    "term": "assumption",
+    "idf": 2.1
+  },
+  {
+    "term": "at",
+    "idf": 1.6
+  },
+  {
+    "term": "atom",
+    "idf": 4.1
+  },
+  {
+    "term": "attribute",
+    "idf": 2.1
+  },
+  {
+    "term": "average",
+    "idf": 2.1
+  },
+  {
+    "term": "background",
+    "idf": 2.1
+  },
+  {
+    "term": "base",
+    "idf": 4.1
+  },
+  {
+    "term": "be",
+    "idf": 1.5
+  },
+  {
+    "term": "begin",
+    "idf": 3.3
+  },
+  {
+    "term": "benefit",
+    "idf": 2.1
+  },
+  {
+    "term": "between",
+    "idf": 2.9
+  },
+  {
+    "term": "bibliography",
+    "idf": 4.1
+  },
+  {
+    "term": "biology",
+    "idf": 4.1
+  },
+  {
+    "term": "but",
+    "idf": 1.6
+  },
+  {
+    "term": "by",
+    "idf": 1.7
+  },
+  {
+    "term": "calculation",
+    "idf": 2.1
+  },
+  {
+    "term": "calculus",
+    "idf": 4.1
+  },
+  {
+    "term": "can",
+    "idf": 1.7
+  },
+  {
+    "term": "case",
+    "idf": 2.1
+  },
+  {
+    "term": "catalyst",
+    "idf": 5.3
+  },
+  {
+    "term": "category",
+    "idf": 2.1
+  },
+  {
+    "term": "causation",
+    "idf": 4.1
+  },
+  {
+    "term": "cause",
+    "idf": 2.1
+  },
+  {
+    "term": "cell",
+    "idf": 4.2
+  },
+  {
+    "term": "change",
+    "idf": 2.2
+  },
+  {
+    "term": "chapter",
+    "idf": 4.2
+  },
+  {
+    "term": "characteristic",
+    "idf": 2.2
+  },
+  {
+    "term": "chart",
+    "idf": 4.2
+  },
+  {
+    "term": "chemistry",
+    "idf": 4.2
+  },
+  {
+    "term": "chromosome",
+    "idf": 5.9
+  },
+  {
+    "term": "citation",
+    "idf": 4.2
+  },
+  {
+    "term": "city",
+    "idf": 2.2
+  },
+  {
+    "term": "class",
+    "idf": 2.2
+  },
+  {
+    "term": "code",
+    "idf": 2.2
+  },
+  {
+    "term": "coefficient",
+    "idf": 4.2
+  },
+  {
+    "term": "comparison",
+    "idf": 2.2
+  },
+  {
+    "term": "competency",
+    "idf": 4.2
+  },
+  {
+    "term": "component",
+    "idf": 2.2
+  },
+  {
+    "term": "compound",
+    "idf": 2.2
+  },
+  {
+    "term": "comprehension",
+    "idf": 4.2
+  },
+  {
+    "term": "computation",
+    "idf": 2.2
+  },
+  {
+    "term": "computer",
+    "idf": 4.3
+  },
+  {
+    "term": "concentration",
+    "idf": 4.3
+  },
+  {
+    "term": "concept",
+    "idf": 2.2
+  },
+  {
+    "term": "conclusion",
+    "idf": 2.2
+  },
+  {
+    "term": "condition",
+    "idf": 2.3
+  },
+  {
+    "term": "connection",
+    "idf": 2.3
+  },
+  {
+    "term": "consequence",
+    "idf": 2.3
+  },
+  {
+    "term": "consider",
+    "idf": 3.4
+  },
+  {
+    "term": "constant",
+    "idf": 4.3
+  },
+  {
+    "term": "content",
+    "idf": 2.3
+  },
+  {
+    "term": "context",
+    "idf": 2.3
+  },
+  {
+    "term": "correlation",
+    "idf": 4.3
+  },
+  {
+    "term": "country",
+    "idf": 2.3
+  },
+  {
+    "term": "create",
+    "idf": 3.5
+  },
+  {
+    "term": "data",
+    "idf": 2.3
+  },
+  {
+    "term": "database",
+    "idf": 6.5
+  },
+  {
+    "term": "definition",
+    "idf": 4.3
+  },
+  {
+    "term": "degree",
+    "idf": 2.3
+  },
+  {
+    "term": "demonstration",
+    "idf": 4.3
+  },
+  {
+    "term": "density",
+    "idf": 2.3
+  },
+  {
+    "term": "depth",
+    "idf": 2.3
+  },
+  {
+    "term": "derivative",
+    "idf": 4.3
+  },
+  {
+    "term": "design",
+    "idf": 2.3
+  },
+  {
+    "term": "development",
+    "idf": 2.4
+  },
+  {
+    "term": "deviation",
+    "idf": 4.3
+  },
+  {
+    "term": "device",
+    "idf": 2.4
+  },
+  {
+    "term": "diagram",
+    "idf": 4.3
+  },
+  {
+    "term": "difference",
+    "idf": 2.4
+  },
+  {
+    "term": "differentiation",
+    "idf": 6.4
+  },
+  {
+    "term": "diffusion",
+    "idf": 5.4
+  },
+  {
+    "term": "dimension",
+    "idf": 2.4
+  },
+  {
+    "term": "direction",
+    "idf": 2.4
+  },
+  {
+    "term": "disadvantage",
+    "idf": 2.4
+  },
+  {
+    "term": "distribution",
+    "idf": 4.4
+  },
+  {
+    "term": "do",
+    "idf": 1.9
+  },
+  {
+    "term": "each",
+    "idf": 1.8
+  },
+  {
+    "term": "economics",
+    "idf": 4.4
+  },
+  {
+    "term": "ecosystem",
+    "idf": 4.4
+  },
+  {
+    "term": "effect",
+    "idf": 2.4
+  },
+  {
+    "term": "electromagnetism",
+    "idf": 6.1
+  },
+  {
+    "term": "electron",
+    "idf": 4.4
+  },
+  {
+    "term": "element",
+    "idf": 2.4
+  },
+  {
+    "term": "empirical",
+    "idf": 4.4
+  },
+  {
+    "term": "energy",
+    "idf": 2.4
+  },
+  {
+    "term": "engineering",
+    "idf": 4.4
+  },
+  {
+    "term": "enzyme",
+    "idf": 4.4
+  },
+  {
+    "term": "equation",
+    "idf": 2.4
+  },
+  {
+    "term": "equilibrium",
+    "idf": 5.3
+  },
+  {
+    "term": "evaluation",
+    "idf": 4.4
+  },
+  {
+    "term": "evidence",
+    "idf": 2.4
+  },
+  {
+    "term": "evolution",
+    "idf": 4.5
+  },
+  {
+    "term": "exam",
+    "idf": 4.5
+  },
+  {
+    "term": "example",
+    "idf": 2.5
+  },
+  {
+    "term": "exercise",
+    "idf": 4.5
+  },
+  {
+    "term": "experiment",
+    "idf": 4.5
+  },
+  {
+    "term": "explanation",
+    "idf": 2.5
+  },
+  {
+    "term": "exponential",
+    "idf": 4.5
+  },
+  {
+    "term": "fact",
+    "idf": 2.5
+  },
+  {
+    "term": "factor",
+    "idf": 2.5
+  },
+  {
+    "term": "feature",
+    "idf": 2.5
+  },
+  {
+    "term": "feedback",
+    "idf": 4.5
+  },
+  {
+    "term": "figure",
+    "idf": 4.5
+  },
+  {
+    "term": "find",
+    "idf": 2.7
+  },
+  {
+    "term": "finding",
+    "idf": 2.5
+  },
+  {
+    "term": "footnote",
+    "idf": 4.5
+  },
+  {
+    "term": "for",
+    "idf": 1.4
+  },
+  {
+    "term": "force",
+    "idf": 2.5
+  },
+  {
+    "term": "form",
+    "idf": 2.5
+  },
+  {
+    "term": "formula",
+    "idf": 2.5
+  },
+  {
+    "term": "frequency",
+    "idf": 4.6
+  },
+  {
+    "term": "from",
+    "idf": 1.6
+  },
+  {
+    "term": "function",
+    "idf": 2.5
+  },
+  {
+    "term": "genetics",
+    "idf": 4.6
+  },
+  {
+    "term": "genotype",
+    "idf": 5.8
+  },
+  {
+    "term": "geometry",
+    "idf": 4.6
+  },
+  {
+    "term": "glossary",
+    "idf": 4.6
+  },
+  {
+    "term": "goal",
+    "idf": 2.5
+  },
+  {
+    "term": "grade",
+    "idf": 4.6
+  },
+  {
+    "term": "grammar",
+    "idf": 4.6
+  },
+  {
+    "term": "graph",
+    "idf": 4.6
+  },
+  {
+    "term": "gravity",
+    "idf": 5.7
+  },
+  {
+    "term": "group",
+    "idf": 2.6
+  },
+  {
+    "term": "hand",
+    "idf": 2.6
+  },
+  {
+    "term": "have",
+    "idf": 1.5
+  },
+  {
+    "term": "height",
+    "idf": 2.6
+  },
+  {
+    "term": "history",
+    "idf": 2.6
+  },
+  {
+    "term": "home",
+    "idf": 2.6
+  },
+  {
+    "term": "how",
+    "idf": 1.9
+  },
+  {
+    "term": "hypothesis",
+    "idf": 2.6
+  },
+  {
+    "term": "if",
+    "idf": 1.9
+  },
+  {
+    "term": "illustration",
+    "idf": 4.6
+  },
+  {
+    "term": "implication",
+    "idf": 2.6
+  },
+  {
+    "term": "importance",
+    "idf": 2.6
+  },
+  {
+    "term": "in",
+    "idf": 1.3
+  },
+  {
+    "term": "inequality",
+    "idf": 4.6
+  },
+  {
+    "term": "inertia",
+    "idf": 5.7
+  },
+  {
+    "term": "information",
+    "idf": 2.6
+  },
+  {
+    "term": "input",
+    "idf": 2.6
+  },
+  {
+    "term": "instrument",
+    "idf": 2.6
+  },
+  {
+    "term": "integral",
+    "idf": 4.7
+  },
+  {
+    "term": "interpretation",
+    "idf": 2.7
+  },
+  {
+    "term": "introduction",
+    "idf": 4.7
+  },
+  {
+    "term": "is",
+    "idf": 1.3
+  },
+  {
+    "term": "it",
+    "idf": 1.4
+  },
+  {
+    "term": "keep",
+    "idf": 3.2
+  },
+  {
+    "term": "keyword",
+    "idf": 4.7
+  },
+  {
+    "term": "knowledge",
+    "idf": 2.7
+  },
+  {
+    "term": "language",
+    "idf": 4.7
+  },
+  {
+    "term": "law",
+    "idf": 2.7
+  },
+  {
+    "term": "learn",
+    "idf": 4.7
+  },
+  {
+    "term": "length",
+    "idf": 2.7
+  },
+  {
+    "term": "let",
+    "idf": 3.2
+  },
+  {
+    "term": "level",
+    "idf": 2.7
+  },
+  {
+    "term": "life",
+    "idf": 2.7
+  },
+  {
+    "term": "limit",
+    "idf": 4.7
+  },
+  {
+    "term": "line",
+    "idf": 2.7
+  },
+  {
+    "term": "linear",
+    "idf": 4.7
+  },
+  {
+    "term": "listening",
+    "idf": 4.7
+  },
+  {
+    "term": "literature",
+    "idf": 4.8
+  },
+  {
+    "term": "location",
+    "idf": 2.7
+  },
+  {
+    "term": "logarithm",
+    "idf": 6.3
+  },
+  {
+    "term": "logarithmic",
+    "idf": 4.8
+  },
+  {
+    "term": "logic",
+    "idf": 2.7
+  },
+  {
+    "term": "make",
+    "idf": 2.5
+  },
+  {
+    "term": "man",
+    "idf": 2.7
+  },
+  {
+    "term": "many",
+    "idf": 2.1
+  },
+  {
+    "term": "mass",
+    "idf": 2.7
+  },
+  {
+    "term": "material",
+    "idf": 2.8
+  },
+  {
+    "term": "mathematics",
+    "idf": 4.8
+  },
+  {
+    "term": "matrix",
+    "idf": 4.8
+  },
+  {
+    "term": "mean",
+    "idf": 4.8
+  },
+  {
+    "term": "measurement",
+    "idf": 2.8
+  },
+  {
+    "term": "median",
+    "idf": 4.8
+  },
+  {
+    "term": "membrane",
+    "idf": 5.0
+  },
+  {
+    "term": "method",
+    "idf": 2.8
+  },
+  {
+    "term": "methodology",
+    "idf": 4.8
+  },
+  {
+    "term": "mitosis",
+    "idf": 5.1
+  },
+  {
+    "term": "mixture",
+    "idf": 4.8
+  },
+  {
+    "term": "mode",
+    "idf": 4.9
+  },
+  {
+    "term": "model",
+    "idf": 2.8
+  },
+  {
+    "term": "molecule",
+    "idf": 4.9
+  },
+  {
+    "term": "momentum",
+    "idf": 5.6
+  },
+  {
+    "term": "most",
+    "idf": 2.6
+  },
+  {
+    "term": "motion",
+    "idf": 2.8
+  },
+  {
+    "term": "much",
+    "idf": 3.1
+  },
+  {
+    "term": "nature",
+    "idf": 2.8
+  },
+  {
+    "term": "need",
+    "idf": 2.8
+  },
+  {
+    "term": "network",
+    "idf": 2.8
+  },
+  {
+    "term": "neutron",
+    "idf": 4.9
+  },
+  {
+    "term": "new",
+    "idf": 2.7
+  },
+  {
+    "term": "no",
+    "idf": 2.1
+  },
+  {
+    "term": "not",
+    "idf": 1.6
+  },
+  {
+    "term": "nucleus",
+    "idf": 5.1
+  },
+  {
+    "term": "number",
+    "idf": 2.8
+  },
+  {
+    "term": "objective",
+    "idf": 2.8
+  },
+  {
+    "term": "observation",
+    "idf": 4.9
+  },
+  {
+    "term": "of",
+    "idf": 1.3
+  },
+  {
+    "term": "on",
+    "idf": 1.4
+  },
+  {
+    "term": "or",
+    "idf": 1.7
+  },
+  {
+    "term": "order",
+    "idf": 2.8
+  },
+  {
+    "term": "organ",
+    "idf": 4.9
+  },
+  {
+    "term": "organism",
+    "idf": 4.9
+  },
+  {
+    "term": "origin",
+    "idf": 2.8
+  },
+  {
+    "term": "osmosis",
+    "idf": 5.4
+  },
+  {
+    "term": "out",
+    "idf": 2.0
+  },
+  {
+    "term": "outcome",
+    "idf": 2.9
+  },
+  {
+    "term": "outline",
+    "idf": 4.9
+  },
+  {
+    "term": "output",
+    "idf": 2.9
+  },
+  {
+    "term": "oxidation",
+    "idf": 6.2
+  },
+  {
+    "term": "paragraph",
+    "idf": 4.9
+  },
+  {
+    "term": "parameter",
+    "idf": 5.0
+  },
+  {
+    "term": "part",
+    "idf": 2.9
+  },
+  {
+    "term": "pattern",
+    "idf": 2.9
+  },
+  {
+    "term": "people",
+    "idf": 2.9
+  },
+  {
+    "term": "percentage",
+    "idf": 2.9
+  },
+  {
+    "term": "perspective",
+    "idf": 2.9
+  },
+  {
+    "term": "phenotype",
+    "idf": 5.8
+  },
+  {
+    "term": "philosophy",
+    "idf": 5.0
+  },
+  {
+    "term": "photosynthesis",
+    "idf": 5.2
+  },
+  {
+    "term": "phrase",
+    "idf": 5.0
+  },
+  {
+    "term": "physics",
+    "idf": 5.0
+  },
+  {
+    "term": "place",
+    "idf": 2.9
+  },
+  {
+    "term": "plan",
+    "idf": 2.9
+  },
+  {
+    "term": "point",
+    "idf": 2.9
+  },
+  {
+    "term": "policy",
+    "idf": 2.9
+  },
+  {
+    "term": "population",
+    "idf": 5.0
+  },
+  {
+    "term": "position",
+    "idf": 3.0
+  },
+  {
+    "term": "practice",
+    "idf": 3.0
+  },
+  {
+    "term": "precipitation",
+    "idf": 6.3
+  },
+  {
+    "term": "prediction",
+    "idf": 5.0
+  },
+  {
+    "term": "premise",
+    "idf": 3.0
+  },
+  {
+    "term": "pressure",
+    "idf": 3.0
+  },
+  {
+    "term": "principle",
+    "idf": 3.0
+  },
+  {
+    "term": "probability",
+    "idf": 5.0
+  },
+  {
+    "term": "problem",
+    "idf": 3.0
+  },
+  {
+    "term": "procedure",
+    "idf": 3.0
+  },
+  {
+    "term": "process",
+    "idf": 3.0
+  },
+  {
+    "term": "product",
+    "idf": 3.0
+  },
+  {
+    "term": "program",
+    "idf": 3.0
+  },
+  {
+    "term": "property",
+    "idf": 3.0
+  },
+  {
+    "term": "proportion",
+    "idf": 3.1
+  },
+  {
+    "term": "protein",
+    "idf": 5.0
+  },
+  {
+    "term": "proton",
+    "idf": 5.0
+  },
+  {
+    "term": "provide",
+    "idf": 3.3
+  },
+  {
+    "term": "psychology",
+    "idf": 5.1
+  },
+  {
+    "term": "purpose",
+    "idf": 3.1
+  },
+  {
+    "term": "qualitative",
+    "idf": 5.1
+  },
+  {
+    "term": "quality",
+    "idf": 3.1
+  },
+  {
+    "term": "quantitative",
+    "idf": 5.1
+  },
+  {
+    "term": "quantum",
+    "idf": 6.4
+  },
+  {
+    "term": "question",
+    "idf": 3.1
+  },
+  {
+    "term": "quiz",
+    "idf": 5.1
+  },
+  {
+    "term": "random",
+    "idf": 5.1
+  },
+  {
+    "term": "range",
+    "idf": 3.1
+  },
+  {
+    "term": "rate",
+    "idf": 3.1
+  },
+  {
+    "term": "ratio",
+    "idf": 3.1
+  },
+  {
+    "term": "reaction",
+    "idf": 5.1
+  },
+  {
+    "term": "reading",
+    "idf": 5.1
+  },
+  {
+    "term": "reason",
+    "idf": 3.1
+  },
+  {
+    "term": "reduction",
+    "idf": 6.2
+  },
+  {
+    "term": "reference",
+    "idf": 5.1
+  },
+  {
+    "term": "regression",
+    "idf": 5.2
+  },
+  {
+    "term": "relationship",
+    "idf": 3.1
+  },
+  {
+    "term": "research",
+    "idf": 3.1
+  },
+  {
+    "term": "resource",
+    "idf": 3.1
+  },
+  {
+    "term": "respiration",
+    "idf": 5.2
+  },
+  {
+    "term": "result",
+    "idf": 3.2
+  },
+  {
+    "term": "review",
+    "idf": 5.2
+  },
+  {
+    "term": "ribosome",
+    "idf": 5.1
+  },
+  {
+    "term": "risk",
+    "idf": 3.2
+  },
+  {
+    "term": "role",
+    "idf": 3.2
+  },
+  {
+    "term": "rule",
+    "idf": 3.2
+  },
+  {
+    "term": "sample",
+    "idf": 5.2
+  },
+  {
+    "term": "scalar",
+    "idf": 5.2
+  },
+  {
+    "term": "scale",
+    "idf": 3.2
+  },
+  {
+    "term": "science",
+    "idf": 5.2
+  },
+  {
+    "term": "score",
+    "idf": 5.2
+  },
+  {
+    "term": "section",
+    "idf": 5.2
+  },
+  {
+    "term": "sentence",
+    "idf": 5.2
+  },
+  {
+    "term": "sequence",
+    "idf": 3.2
+  },
+  {
+    "term": "set",
+    "idf": 3.0
+  },
+  {
+    "term": "show",
+    "idf": 3.1
+  },
+  {
+    "term": "significance",
+    "idf": 3.2
+  },
+  {
+    "term": "significant",
+    "idf": 5.3
+  },
+  {
+    "term": "similarity",
+    "idf": 3.2
+  },
+  {
+    "term": "size",
+    "idf": 3.2
+  },
+  {
+    "term": "skill",
+    "idf": 5.3
+  },
+  {
+    "term": "sociology",
+    "idf": 5.3
+  },
+  {
+    "term": "solution",
+    "idf": 5.3
+  },
+  {
+    "term": "some",
+    "idf": 2.6
+  },
+  {
+    "term": "source",
+    "idf": 3.2
+  },
+  {
+    "term": "speaking",
+    "idf": 5.3
+  },
+  {
+    "term": "state",
+    "idf": 3.2
+  },
+  {
+    "term": "statistics",
+    "idf": 5.3
+  },
+  {
+    "term": "stoichiometry",
+    "idf": 6.1
+  },
+  {
+    "term": "strategy",
+    "idf": 3.3
+  },
+  {
+    "term": "structure",
+    "idf": 3.3
+  },
+  {
+    "term": "study",
+    "idf": 3.3
+  },
+  {
+    "term": "substance",
+    "idf": 3.3
+  },
+  {
+    "term": "sum",
+    "idf": 3.3
+  },
+  {
+    "term": "summary",
+    "idf": 5.3
+  },
+  {
+    "term": "synthesis",
+    "idf": 5.3
+  },
+  {
+    "term": "system",
+    "idf": 3.3
+  },
+  {
+    "term": "table",
+    "idf": 5.4
+  },
+  {
+    "term": "target",
+    "idf": 3.3
+  },
+  {
+    "term": "teach",
+    "idf": 5.4
+  },
+  {
+    "term": "technique",
+    "idf": 3.3
+  },
+  {
+    "term": "technology",
+    "idf": 5.4
+  },
+  {
+    "term": "temperature",
+    "idf": 3.3
+  },
+  {
+    "term": "tensor",
+    "idf": 5.4
+  },
+  {
+    "term": "term",
+    "idf": 5.4
+  },
+  {
+    "term": "test",
+    "idf": 5.4
+  },
+  {
+    "term": "that",
+    "idf": 1.3
+  },
+  {
+    "term": "the",
+    "idf": 1.0
+  },
+  {
+    "term": "then",
+    "idf": 2.1
+  },
+  {
+    "term": "theoretical",
+    "idf": 5.4
+  },
+  {
+    "term": "theory",
+    "idf": 3.3
+  },
+  {
+    "term": "thermodynamics",
+    "idf": 6.0
+  },
+  {
+    "term": "they",
+    "idf": 1.6
+  },
+  {
+    "term": "this",
+    "idf": 1.5
+  },
+  {
+    "term": "time",
+    "idf": 3.3
+  },
+  {
+    "term": "tissue",
+    "idf": 5.4
+  },
+  {
+    "term": "to",
+    "idf": 1.3
+  },
+  {
+    "term": "total",
+    "idf": 3.4
+  },
+  {
+    "term": "trait",
+    "idf": 3.4
+  },
+  {
+    "term": "transcription",
+    "idf": 5.9
+  },
+  {
+    "term": "translation",
+    "idf": 6.0
+  },
+  {
+    "term": "trigonometry",
+    "idf": 5.4
+  },
+  {
+    "term": "type",
+    "idf": 3.4
+  },
+  {
+    "term": "understanding",
+    "idf": 3.4
+  },
+  {
+    "term": "unit",
+    "idf": 3.4
+  },
+  {
+    "term": "use",
+    "idf": 1.8
+  },
+  {
+    "term": "validation",
+    "idf": 5.5
+  },
+  {
+    "term": "value",
+    "idf": 3.4
+  },
+  {
+    "term": "variable",
+    "idf": 3.4
+  },
+  {
+    "term": "variance",
+    "idf": 5.5
+  },
+  {
+    "term": "vector",
+    "idf": 6.5
+  },
+  {
+    "term": "velocity",
+    "idf": 5.6
+  },
+  {
+    "term": "verification",
+    "idf": 5.5
+  },
+  {
+    "term": "viewpoint",
+    "idf": 3.4
+  },
+  {
+    "term": "vocabulary",
+    "idf": 5.5
+  },
+  {
+    "term": "volume",
+    "idf": 3.4
+  },
+  {
+    "term": "was",
+    "idf": 1.4
+  },
+  {
+    "term": "water",
+    "idf": 3.4
+  },
+  {
+    "term": "wavelength",
+    "idf": 5.5
+  },
+  {
+    "term": "way",
+    "idf": 3.4
+  },
+  {
+    "term": "we",
+    "idf": 1.7
+  },
+  {
+    "term": "week",
+    "idf": 3.5
+  },
+  {
+    "term": "weight",
+    "idf": 3.5
+  },
+  {
+    "term": "which",
+    "idf": 1.8
+  },
+  {
+    "term": "width",
+    "idf": 3.5
+  },
+  {
+    "term": "will",
+    "idf": 2.0
+  },
+  {
+    "term": "with",
+    "idf": 1.5
+  },
+  {
+    "term": "woman",
+    "idf": 3.5
+  },
+  {
+    "term": "word",
+    "idf": 3.5
+  },
+  {
+    "term": "work",
+    "idf": 2.9
+  },
+  {
+    "term": "world",
+    "idf": 3.5
+  },
+  {
+    "term": "writing",
+    "idf": 5.5
+  }
+]

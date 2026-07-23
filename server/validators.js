@@ -31,6 +31,14 @@ const searchSchema = z.object({
 
 const flashcardSchema = z.object({
   text: z.string({ message: 'Text content is required.' }).min(1, 'Text content is required.'),
+  cardStyle: z.enum(['term-definition', 'question-answer', 'cloze', 'concept-example']).optional(),
+  difficulty: z.enum(['recap', 'review', 'master']).optional(),
+  count: z.coerce.number().int().min(5).max(20).optional(),
+  orientation: z.enum(['front-back', 'back-front']).optional(),
+  rerollFor: z.object({
+    question: z.string(),
+    answer: z.string(),
+  }).optional(),
 });
 
 const quizSchema = z.object({
@@ -42,6 +50,31 @@ const quizSchema = z.object({
 
 const deleteUploadSchema = z.object({
   blobUrl: z.string({ message: 'blobUrl is required' }).min(1, 'blobUrl is required'),
+});
+
+const studyChatSchema = z.object({
+  prompt: z.string({ message: 'Prompt is required' }).min(1, 'Prompt is required').max(50000),
+  activeSourceIds: z.array(z.string().uuid(), { message: 'activeSourceIds must be an array of UUIDs' }).min(1, 'At least one source must be active').max(50),
+  model: z.string().optional(),
+  conversationId: z.string().uuid().optional(),
+});
+
+const studyUploadSchema = z.object({
+  fileName: z.string({ message: 'fileName is required' }).min(1, 'fileName is required'),
+  fileType: z.string({ message: 'fileType is required' }).min(1, 'fileType is required'),
+  pages: z.array(z.object({
+    text: z.string(),
+    pageNumber: z.number().int().positive().optional(),
+  }), { message: 'pages array is required' }).min(1, 'At least one page is required'),
+});
+
+const studyToolSchema = z.object({
+  activeSourceIds: z.array(z.string().uuid(), { message: 'activeSourceIds must be an array of UUIDs' }).min(1, 'At least one source must be active').max(50),
+  chatHistory: z.array(z.object({
+    role: z.enum(['user', 'assistant']),
+    content: z.string(),
+  })).max(50).optional(),
+  count: z.coerce.number().int().min(3).max(50).optional(),
 });
 
 // ── Middleware factory ───────────────────────────────────────────
@@ -71,5 +104,8 @@ module.exports = {
     flashcard: flashcardSchema,
     quiz: quizSchema,
     deleteUpload: deleteUploadSchema,
+    studyChat: studyChatSchema,
+    studyUpload: studyUploadSchema,
+    studyTool: studyToolSchema,
   },
 };

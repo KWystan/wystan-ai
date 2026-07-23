@@ -36,6 +36,13 @@ if (authRouter && conversationsRouter && projectsRouter) {
     app.use('/api/projects', optionalAuth, requireAuth, sourcesRouter);
     console.log('Sources router loaded.');
   }
+
+  // Study hub (RAG Q&A, sources, tools)
+  const { studyHubRouter } = require('./routes/study');
+  if (studyHubRouter) {
+    app.use('/api/study', optionalAuth, requireAuth, studyHubRouter);
+    console.log('Study hub router loaded.');
+  }
 }
 
 // ── Feature route modules ───────────────────────────────────────
