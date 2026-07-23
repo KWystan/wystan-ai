@@ -9,6 +9,8 @@ const path = require('path');
 const { supabaseAdmin } = require('../supabase');
 const { uploadBlob, deleteBlob, isConfigured } = require('../blob');
 const { checkQuota, recordUsage, deleteUsage } = require('../storage');
+const { extractText } = require('../extractors');
+const { truncateContent } = require('../extractors');
 
 const router = Router();
 
@@ -16,96 +18,6 @@ const upload = multer({
   storage: multer.memoryStorage(),
   limits: { fileSize: 10 * 1024 * 1024 }, // 10 MB
 });
-
-// File type mapping (reused from main server)
-const FILE_TYPES = {
-  pdf:  { type: 'pdf',  group: 'document' },
-  docx: { type: 'docx', group: 'document' },
-  pptx: { type: 'pptx', group: 'document' },
-  xlsx: { type: 'xlsx', group: 'table' },
-  xls:  { type: 'xls',  group: 'table' },
-  csv:  { type: 'csv',  group: 'table' },
-  tsv:  { type: 'tsv',  group: 'table' },
-  md:   { type: 'code', group: 'text', language: 'markdown' },
-  txt:  { type: 'text', group: 'text' },
-  json: { type: 'code', group: 'text', language: 'json' },
-};
-
-/**
- * Extract text from a file buffer based on its type.
- */
-async function extractText(buffer, ext, mimetype) {
-  const info = FILE_TYPES[ext];
-  if (!info) return null;
-
-  if (info.group === 'text') {
-    return buffer.toString('utf8').slice(0, 50000);
-  }
-
-  if (info.group === 'document') {
-    if (info.type === 'pdf') {
-      try {
-        const PDFParse = require('pdf-parse').PDFParse;
-        const parser = new PDFParse({ data: buffer });
-        const result = await parser.getText();
-        return (result.text || result).slice(0, 50000);
-      } catch (e) {
-        console.error('PDF extraction failed:', e.message);
-        return null;
-      }
-    }
-    if (info.type === 'docx') {
-      try {
-        const mammoth = require('mammoth');
-        const result = await mammoth.extractRawText({ buffer });
-        return result.value.slice(0, 50000);
-      } catch (e) {
-        console.error('DOCX extraction failed:', e.message);
-        return null;
-      }
-    }
-    if (info.type === 'pptx') {
-      try {
-        // Simple PPTX text extraction from zip entries (sync, using adm-zip)
-        const AdmZip = require('adm-zip');
-        const zip = new AdmZip(buffer);
-        const entries = zip.getEntries();
-        const parts = [];
-        for (const entry of entries) {
-          if (!entry.entryName.startsWith('ppt/slides/') || !entry.entryName.endsWith('.xml')) continue;
-          const xml = entry.getData().toString('utf8');
-          const texts = [...xml.matchAll(/<a:t[^>]*>([^<]*)<\/a:t>/g)].map(m => m[1]);
-          if (texts.length) parts.push(texts.join(' '));
-        }
-        return parts.join('\n\n').slice(0, 50000);
-      } catch (e) {
-        console.error('PPTX extraction failed:', e.message);
-        return null;
-      }
-    }
-  }
-
-  if (info.group === 'table') {
-    if (info.type === 'csv' || info.type === 'tsv') {
-      return buffer.toString('utf8').slice(0, 50000);
-    }
-    try {
-      const XLSX = require('xlsx');
-      const workbook = XLSX.read(buffer, { type: 'buffer' });
-      const parts = workbook.SheetNames.map(name => {
-        const sheet = workbook.Sheets[name];
-        const csv = XLSX.utils.sheet_to_csv(sheet);
-        return csv ? `--- ${name} ---\n${csv}` : null;
-      }).filter(Boolean);
-      return parts.join('\n\n').slice(0, 50000);
-    } catch (e) {
-      console.error('XLSX parsing failed:', e.message);
-      return null;
-    }
-  }
-
-  return null;
-}
 
 /**
  * POST /api/projects/:id/sources � Upload a file as a project source.
@@ -135,8 +47,9 @@ router.post('/:id/sources', upload.single('file'), async (req, res) => {
       return res.status(404).json({ error: 'Project not found' });
     }
 
-    // Extract text content
-    const content = await extractText(buffer, ext, mimetype);
+    // Extract text content (truncated for LLM context window safety)
+    const rawContent = await extractText(buffer, ext, mimetype);
+    const content = truncateContent(rawContent);
 
     // Upload to Azure Blob Storage
     let blobUrl = null;

@@ -1158,9 +1158,6 @@ export default function ProjectPage() {
                                   {renderMessageText(msg.content, (src) => setLightboxUrl(src))}
                                 </div>
                               )}
-                              {!msg.content && isLoading && i === messages.length - 1 ? (
-                                <span className="text-black text-sm">Thinking&hellip;</span>
-                              ) : null}
                             </div>
                             {/* Copy button on finished messages */}
                             {msg.content && !(isLoading && i === messages.length - 1) && (
