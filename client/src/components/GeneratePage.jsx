@@ -1,7 +1,6 @@
 import { useState, useEffect, useRef } from 'react';
 import { Link, useNavigate, useLocation } from 'react-router-dom';
-import { getToken, setTokens, clearTokens, parseOAuthTokensFromHash, authFetch } from '../lib/auth.js';
-import Sidebar from './Sidebar.jsx';
+import { useApp } from '../lib/AppContext';
 import logo from '../assets/logo.png';
 
 const WIDTHS = [512, 768, 1024];
@@ -105,22 +104,11 @@ export default function GeneratePage() {
   const [inspirationFile, setInspirationFile] = useState(null);
   const [inspirationPreview, setInspirationPreview] = useState(null);
   const [analyzing, setAnalyzing] = useState(false);
+  const { user, setSidebarOpen } = useApp();
   const [error, setError] = useState(null);
-  const [user, setUser] = useState(null);
-  const [sidebarOpen, setSidebarOpen] = useState(false);
   const [isDragOver, setIsDragOver] = useState(false);
   const [recentImages, setRecentImages] = useState([]);
   const [lightboxUrl, setLightboxUrl] = useState(null);
-
-  /* ── Auth state ─────────────────────────────────────────── */
-  useEffect(() => {
-    const token = getToken();
-    if (token) {
-      authFetch('/api/auth/me').then((res) => {
-        if (res.ok) res.json().then((data) => setUser(data.user));
-      });
-    }
-  }, []);
 
   /* ── Accept initial prompt from ChatPage navigation ─────── */
   useEffect(() => {
@@ -345,40 +333,8 @@ export default function GeneratePage() {
     images.forEach((img, i) => handleDownload(img, i));
   };
 
-  /* ── Sidebar handlers ───────────────────────────────────── */
-  const handleClear = () => navigate('/chat');
-  const handleSignOut = async () => {
-    try {
-      await authFetch('/api/auth/signout', { method: 'POST' });
-    } catch { /* ignore */ }
-    clearTokens();
-    setUser(null);
-  };
-  const handleOpenAuth = () => navigate('/chat');
-
   return (
-    <div className="fixed inset-0 z-50 flex bg-white">
-      {/* ── Sidebar ────────────────────────────────────────────── */}
-      <Sidebar
-        user={user}
-        onNewChat={handleClear}
-        currentConversationId={null}
-        onSelectConversation={(id) => navigate(`/chat/${id}`)}
-        onSignOut={handleSignOut}
-        onOpenAuth={handleOpenAuth}
-        sidebarOpen={sidebarOpen}
-        onCloseSidebar={() => setSidebarOpen(false)}
-      />
-
-      {/* ── Mobile overlay ──────────────────────────────────────── */}
-      {sidebarOpen && (
-        <div
-          className="fixed inset-0 z-30 bg-black/10 md:hidden"
-          onClick={() => setSidebarOpen(false)}
-        />
-      )}
-
-      {/* ── Main area ─────────────────────────────────────────── */}
+    <>
       <div className="flex-1 flex flex-col min-w-0 h-full lg:pl-4">
         {/* ── Top bar ────────────────────────────────────────── */}
         <header className="flex-shrink-0 bg-white/90 backdrop-blur-md">
@@ -662,6 +618,6 @@ export default function GeneratePage() {
           />
         </div>
       )}
-    </div>
+    </>
   );
 }

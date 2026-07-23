@@ -3,6 +3,10 @@ import { Link, useNavigate } from 'react-router-dom';
 import { authFetch } from '../lib/auth.js';
 import logo from '../assets/logo.png';
 
+/* ── Module-level cache — survives component remounts across navigation ── */
+let _sidebarCache = { conversations: null, projects: null, fetchedAt: 0 };
+const CACHE_TTL = 15000; // 15 seconds before background refresh
+
 const Sidebar = memo(function Sidebar({
   user,
   onNewChat,
@@ -15,8 +19,10 @@ const Sidebar = memo(function Sidebar({
   refreshKey,
 }) {
   /* ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ Data state ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ */
-  const [conversations, setConversations] = useState([]);
-  const [projects, setProjects] = useState([]);
+  /* Seed state from module-level cache so the sidebar doesn't flash empty
+     on navigation — data survives component remounts. */
+  const [conversations, setConversations] = useState(_sidebarCache.conversations || []);
+  const [projects, setProjects] = useState(_sidebarCache.projects || []);
   const [loadingConversations, setLoadingConversations] = useState(false);
   const [loadingProjects, setLoadingProjects] = useState(false);
   const [dataError, setDataError] = useState(null);
@@ -81,6 +87,8 @@ const Sidebar = memo(function Sidebar({
       if (!res.ok) throw new Error('Failed to fetch');
       const data = await res.json();
       setConversations(data || []);
+      _sidebarCache.conversations = data || [];
+      _sidebarCache.fetchedAt = Date.now();
     } catch (err) {
       console.error('Failed to fetch conversations:', err);
       setDataError('Failed to load conversations');
@@ -98,6 +106,8 @@ const Sidebar = memo(function Sidebar({
       if (!res.ok) throw new Error('Failed to fetch');
       const data = await res.json();
       setProjects(data || []);
+      _sidebarCache.projects = data || [];
+      _sidebarCache.fetchedAt = Date.now();
     } catch (err) {
       console.error('Failed to fetch projects:', err);
       setDataError('Failed to load projects');
@@ -109,9 +119,13 @@ const Sidebar = memo(function Sidebar({
   /* ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ Refetch on user change ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ */
   useEffect(() => {
     if (user) {
-      fetchConversations();
-      fetchProjects();
+      const cacheFresh = _sidebarCache.fetchedAt && Date.now() - _sidebarCache.fetchedAt < CACHE_TTL;
+      if (!cacheFresh) {
+        fetchConversations();
+        fetchProjects();
+      }
     } else {
+      _sidebarCache = { conversations: null, projects: null, fetchedAt: 0 };
       setConversations([]);
       setProjects([]);
     }
@@ -135,6 +149,10 @@ const Sidebar = memo(function Sidebar({
       setConversations((prev) =>
         prev.map((c) => (c.id === id ? { ...c, title: title.trim() } : c))
       );
+      // Keep cache in sync
+      _sidebarCache.conversations = _sidebarCache.conversations?.map((c) =>
+        c.id === id ? { ...c, title: title.trim() } : c
+      ) || null;
     } catch (err) {
       console.error('Failed to rename conversation:', err);
     }
@@ -150,11 +168,15 @@ const Sidebar = memo(function Sidebar({
       const res = await authFetch(`/api/conversations/${id}`, { method: 'DELETE' });
       if (!res.ok) throw new Error('Failed to delete');
       setConversations((prev) => prev.filter((c) => c.id !== id));
+      if (_sidebarCache.conversations) {
+        _sidebarCache.conversations = _sidebarCache.conversations.filter((c) => c.id !== id);
+      }
     } catch (err) {
       console.error('Failed to delete conversation:', err);
+    } finally {
+      setKebabOpenId(null);
+      setActionLoading(null);
     }
-    setKebabOpenId(null);
-    setActionLoading(null);
   }, []);
 
   /* ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ Create project ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ */
@@ -169,6 +191,7 @@ const Sidebar = memo(function Sidebar({
       if (!res.ok) throw new Error('Failed to create');
       const data = await res.json();
       setProjects((prev) => [data, ...prev]);
+      _sidebarCache.projects = [data, ...(_sidebarCache.projects || [])];
       setNewProjectName('');
       setCreatingProject(false);
     } catch (err) {
@@ -190,6 +213,11 @@ const Sidebar = memo(function Sidebar({
       setProjects((prev) =>
         prev.map((p) => (p.id === id ? { ...p, name: name.trim() } : p))
       );
+      if (_sidebarCache.projects) {
+        _sidebarCache.projects = _sidebarCache.projects.map((p) =>
+          p.id === id ? { ...p, name: name.trim() } : p
+        );
+      }
     } catch (err) {
       console.error('Failed to rename project:', err);
     }
@@ -205,6 +233,9 @@ const Sidebar = memo(function Sidebar({
       const res = await authFetch(`/api/projects/${id}`, { method: 'DELETE' });
       if (!res.ok) throw new Error('Failed to delete');
       setProjects((prev) => prev.filter((p) => p.id !== id));
+      if (_sidebarCache.projects) {
+        _sidebarCache.projects = _sidebarCache.projects.filter((p) => p.id !== id);
+      }
       // Conversations in this project are now project_id = null (cascade SET NULL)
       fetchConversations();
     } catch (err) {
@@ -228,6 +259,11 @@ const Sidebar = memo(function Sidebar({
           c.id === conversationId ? { ...c, project_id: projectId } : c
         )
       );
+      if (_sidebarCache.conversations) {
+        _sidebarCache.conversations = _sidebarCache.conversations.map((c) =>
+          c.id === conversationId ? { ...c, project_id: projectId } : c
+        );
+      }
     } catch (err) {
       console.error('Failed to move conversation:', err);
     }
@@ -275,7 +311,7 @@ const Sidebar = memo(function Sidebar({
             onBlur={() => { if (!actionLoading) renameConversation(conversationId, renameValue); }}
             disabled={actionLoading === `rename-conversation-${conversationId}`}
             className="w-full text-[11px] rounded-md px-2 py-1 border border-black/10 outline-none focus:border-black/25 bg-white disabled:opacity-40"
-            placeholder="RenameÃƒÂ¢Ã¢â€šÂ¬Ã‚Â¦"
+            placeholder="Rename..."
           />
         </div>
       );
@@ -331,7 +367,7 @@ const Sidebar = memo(function Sidebar({
               disabled={actionLoading === `delete-conversation-${conversationId}`}
               className="w-full text-left px-3 py-1.5 text-[11px] text-red-500 hover:bg-red-50 transition-colors duration-100 disabled:opacity-40 disabled:cursor-default"
             >
-              {actionLoading === `delete-conversation-${conversationId}` ? 'DeletingÃƒÂ¢Ã¢â€šÂ¬Ã‚Â¦' : 'Delete'}
+              {actionLoading === `delete-conversation-${conversationId}` ? 'Deleting...' : 'Delete'}
             </button>
           </div>
         )}
@@ -358,7 +394,7 @@ const Sidebar = memo(function Sidebar({
             onBlur={() => { if (!actionLoading) renameProject(projectId, renameValue); }}
             disabled={actionLoading === `rename-project-${projectId}`}
             className="w-full text-[11px] rounded-md px-2 py-1 border border-black/10 outline-none focus:border-black/25 bg-white disabled:opacity-40"
-            placeholder="RenameÃƒÂ¢Ã¢â€šÂ¬Ã‚Â¦"
+            placeholder="Rename..."
           />
         </div>
       );
@@ -383,7 +419,7 @@ const Sidebar = memo(function Sidebar({
               disabled={actionLoading === `delete-project-${projectId}`}
               className="w-full text-left px-3 py-1.5 text-[11px] text-red-500 hover:bg-red-50 transition-colors duration-100 disabled:opacity-40 disabled:cursor-default"
             >
-              {actionLoading === `delete-project-${projectId}` ? 'DeletingÃƒÂ¢Ã¢â€šÂ¬Ã‚Â¦' : 'Delete'}
+              {actionLoading === `delete-project-${projectId}` ? 'Deleting...' : 'Delete'}
             </button>
           </div>
         )}
@@ -436,7 +472,7 @@ const Sidebar = memo(function Sidebar({
               </svg>
             </span>
           )}
-          {actionLoading === 'new-chat' ? 'CreatingÃƒÂ¢Ã¢â€šÂ¬Ã‚Â¦' : 'New chat'}
+          {actionLoading === 'new-chat' ? 'Creating...' : 'New chat'}
         </button>
       </div>
 
@@ -548,13 +584,13 @@ const Sidebar = memo(function Sidebar({
                         onBlur={() => { if (newProjectName.trim() && !actionLoading) createProject(); else { setCreatingProject(false); setNewProjectName(''); } }}
                         disabled={actionLoading === 'create-project'}
                         className="w-full text-[11px] rounded-md px-2 py-1 border border-black/10 outline-none focus:border-black/25 bg-white disabled:opacity-40"
-                        placeholder="Project nameÃƒÂ¢Ã¢â€šÂ¬Ã‚Â¦"
+                        placeholder="Project name..."
                       />
                     </div>
                   )}
 
                   {loadingProjects ? (
-                    <div className="px-3 py-2 text-[11px] text-black">LoadingÃƒÂ¢Ã¢â€šÂ¬Ã‚Â¦</div>
+                    <div className="px-3 py-2 text-[11px] text-black">Loading...</div>
                   ) : projects.length === 0 ? (
                     <div className="px-3 py-2 text-[11px] text-black italic">
                       {creatingProject ? '' : 'No projects yet'}
@@ -641,7 +677,7 @@ const Sidebar = memo(function Sidebar({
               </div>
 
               {loadingConversations && conversations.length === 0 ? (
-                <div className="px-3 py-2 text-[11px] text-black">LoadingÃƒÂ¢Ã¢â€šÂ¬Ã‚Â¦</div>
+                <div className="px-3 py-2 text-[11px] text-black">Loading...</div>
               ) : conversations.length === 0 ? (
                 <div className="px-3 py-2 text-[11px] text-black italic">
                   Start a conversation to see it here

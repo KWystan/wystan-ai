@@ -1,7 +1,7 @@
 import { useState, useRef, useCallback, useEffect } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { getToken, authFetch } from "../lib/auth.js";
-import Sidebar from "./Sidebar.jsx";
+import { useApp } from "../lib/AppContext";
 
 /* Flip card component with 3D animation */
 function FlipCard({ card, flipped, onClick }) {
@@ -43,28 +43,10 @@ function FlipCard({ card, flipped, onClick }) {
 }
 
 export default function FlashcardsPage() {
-    const navigate = useNavigate();
-  const [user, setUser] = useState(null);
-  const [sidebarOpen, setSidebarOpen] = useState(false);
+  const { setSidebarOpen } = useApp();
+  const navigate = useNavigate();
 
-  /* Auth state */
-  useEffect(() => {
-    const token = getToken();
-    if (token) {
-      authFetch("/api/auth/me").then((res) => {
-        if (res.ok) res.json().then((data) => setUser(data.user));
-      });
-    }
-  }, []);
-
-  /* Sidebar callbacks */
-  const handleClear = () => navigate("/chat");
-  const handleSignOut = () => {
-    if (typeof clearTokens !== "undefined") clearTokens();
-    setUser(null);
-    navigate("/chat");
-  };
-  const handleOpenAuth = () => navigate("/chat");
+  /* Auth state and sidebar callbacks removed — Sidebar now lives in MainLayout */
 
 const [inputMode, setInputMode] = useState("text"); // "text" | "upload"
   const [text, setText] = useState("");
@@ -245,27 +227,7 @@ const [inputMode, setInputMode] = useState("text"); // "text" | "upload"
   const [isDragOver, setIsDragOver] = useState(false);
 
   return (
-    <div className="fixed inset-0 z-50 flex bg-white">
-      {/* Sidebar */}
-      <Sidebar
-        user={user}
-        onNewChat={handleClear}
-        currentConversationId={null}
-        onSelectConversation={(id) => navigate(`/chat/${id}`)}
-        onSignOut={handleSignOut}
-        onOpenAuth={handleOpenAuth}
-        sidebarOpen={sidebarOpen}
-        onCloseSidebar={() => setSidebarOpen(false)}
-      />
-
-      {/* Mobile overlay */}
-      {sidebarOpen && (
-        <div
-          className="fixed inset-0 z-30 bg-black/10 md:hidden"
-          onClick={() => setSidebarOpen(false)}
-        />
-      )}
-      <div className="flex-1 flex flex-col min-w-0 h-full">
+    <>
         {/* Header */}
         <header className="flex-shrink-0 bg-white/90 backdrop-blur-md">
           <div className="px-4 h-12 flex items-center gap-3">
@@ -511,8 +473,7 @@ const [inputMode, setInputMode] = useState("text"); // "text" | "upload"
             )}
           </div>
         </main>
-      </div>
-    </div>
+    </>
   );
 }
 

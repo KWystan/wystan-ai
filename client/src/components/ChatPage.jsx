@@ -3,8 +3,8 @@ import { createPortal } from 'react-dom';
 import { useParams } from 'react-router-dom';
 import Markdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
-import { getToken, setTokens, clearTokens, parseOAuthTokensFromHash, authFetch, signInWithGoogle } from '../lib/auth.js';
-import Sidebar from './Sidebar.jsx';
+import { authFetch } from '../lib/auth.js';
+import { useApp } from '../lib/AppContext';
 
 // Import animated SVG logo for welcome screen
 const aiSparkSvg = new URL('../assets/AI Spark_ Interactive Assistant.svg', import.meta.url).href;
@@ -467,7 +467,7 @@ export default function ChatPage() {
   const [input, setInput] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState(null);
-  const [sidebarOpen, setSidebarOpen] = useState(false);
+  const { user, setUser, sidebarOpen, setSidebarOpen, handleSignOut, currentConversationId, setCurrentConversationId, handleOpenAuth } = useApp();
   const [selectedModel, setSelectedModel] = useState(MODELS[0].id);
   const [modelDropdownOpen, setModelDropdownOpen] = useState(false);
   const [modelDropdownPos, setModelDropdownPos] = useState({ top: 0, left: 0 });
@@ -481,15 +481,6 @@ export default function ChatPage() {
   const [isDragging, setIsDragging] = useState(false);
   const [isUploading, setIsUploading] = useState(false);
   const [pasteConverting, setPasteConverting] = useState(false);
-  const [user, setUser] = useState(null);
-  const [currentConversationId, setCurrentConversationId] = useState(null);
-  const [authOpen, setAuthOpen] = useState(false);
-  const [authMode, setAuthMode] = useState('login');
-  const [authEmail, setAuthEmail] = useState('');
-  const [authPassword, setAuthPassword] = useState('');
-  const [authLoading, setAuthLoading] = useState(false);
-  const [authError, setAuthError] = useState(null);
-  const [authSuccessMsg, setAuthSuccessMsg] = useState(null);
   const [conversationRefetchKey, setConversationRefetchKey] = useState(0);
   const [loadingMessages, setLoadingMessages] = useState(false);
   const [loadingPhase, setLoadingPhase] = useState(null); // 'searching' | 'generating' | null
@@ -523,8 +514,8 @@ export default function ChatPage() {
         if (!res.ok) throw new Error('Failed to load messages');
         const data = await res.json();
         setLoadingMessages(false);
-        if (data.messages && data.messages.length > 0) {
-          setMessages(data.messages);
+        if (Array.isArray(data)) {
+          setMessages(data);
         }
       })
       .catch((err) => {
@@ -570,30 +561,6 @@ export default function ChatPage() {
     window.addEventListener('keydown', handler);
     return () => window.removeEventListener('keydown', handler);
   }, [lightboxUrl]);
-
-  /* ── Auth session ────────────────────────────────────────── */
-  useEffect(() => {
-    // First, check if we're returning from an OAuth redirect with tokens
-    const oauthTokens = parseOAuthTokensFromHash();
-    if (oauthTokens) {
-      setTokens(oauthTokens.accessToken, oauthTokens.refreshToken);
-      // Clean the URL hash
-      window.location.hash = '';
-    }
-
-    // Then check for an existing token and verify it with the server
-    const token = getToken();
-    if (token) {
-      authFetch('/api/auth/me').then((res) => {
-        if (res.ok) {
-          res.json().then((data) => setUser(data.user));
-        } else {
-          // Token invalid — clear it
-          clearTokens();
-        }
-      });
-    }
-  }, []);
 
   /* ── Send message with streaming ──────────────────────────── */
   const handleSend = useCallback(async (overrideText) => {
@@ -928,20 +895,6 @@ export default function ChatPage() {
     }
   }, []);
 
-  /* ── Sign out ────────────────────────────────────────────── */
-  const handleSignOut = useCallback(async () => {
-    try {
-      await authFetch('/api/auth/signout', { method: 'POST' });
-    } catch { /* server might be down — clear locally anyway */ }
-    clearTokens();
-    setUser(null);
-  }, []);
-
-  /* ── Open auth modal ─────────────────────────────────────── */
-  const handleOpenAuth = useCallback((mode) => {
-    setAuthMode(mode || 'login');
-    setAuthOpen(true);
-  }, []);
 
   /* ── Edit: load last user msg back, trim history ──────────── */
   const handleEdit = (idx) => {
@@ -1125,29 +1078,7 @@ export default function ChatPage() {
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex bg-white">
-      {/* ── Sidebar ────────────────────────────────────────────── */}
-      <Sidebar
-        user={user}
-        onNewChat={handleClear}
-        currentConversationId={currentConversationId}
-        onSelectConversation={handleSelectConversation}
-        onSignOut={handleSignOut}
-        onOpenAuth={handleOpenAuth}
-        sidebarOpen={sidebarOpen}
-        onCloseSidebar={() => setSidebarOpen(false)}
-        refreshKey={conversationRefetchKey}
-      />
-
-      {/* ── Mobile overlay ──────────────────────────────────────── */}
-      {sidebarOpen && (
-        <div
-          className="fixed inset-0 z-30 bg-black/10 md:hidden"
-          onClick={() => setSidebarOpen(false)}
-        />
-      )}
-
-      {/* ── Main area ───────────────────────────────────────────── */}
+    <>
       <div
         className="flex-1 flex flex-col min-w-0 h-full relative"
         onDragEnter={handleDragEnter}
@@ -1602,160 +1533,6 @@ export default function ChatPage() {
         </footer>
       </div>
 
-      {/* ── Auth modal ──────────────────────────────────────────── */}
-      {authOpen && (
-        <div
-          className="fixed inset-0 z-[200] bg-black/10 flex items-center justify-center p-4"
-          onClick={() => { setAuthOpen(false); setAuthError(null); setAuthSuccessMsg(null); setAuthEmail(''); setAuthPassword(''); }}
-        >
-          <div
-            className="w-full max-w-sm bg-white rounded-2xl shadow-xl border border-black/8 p-6"
-            onClick={(e) => e.stopPropagation()}
-            style={{ animation: 'scale-in 0.15s var(--ease-out-expo) both' }}
-          >
-            {/* Close */}
-            <div className="flex items-center justify-between mb-4">
-              <h2 className="text-base font-semibold text-black">
-                {authMode === 'login' ? 'Sign in' : 'Create account'}
-              </h2>
-              <button
-                onClick={() => { setAuthOpen(false); setAuthError(null); setAuthSuccessMsg(null); setAuthEmail(''); setAuthPassword(''); }}
-                className="w-7 h-7 rounded-lg flex items-center justify-center text-black hover:text-black active:scale-[0.97] transition-all duration-150"
-              >
-                <span className="material-symbols-outlined text-[18px]">close</span>
-              </button>
-            </div>
-
-            {/* Google OAuth */}
-            <button
-              onClick={async () => {
-                setAuthLoading(true);
-                setAuthError(null);
-                setAuthSuccessMsg(null);
-                try {
-                  // Use client-side Supabase OAuth (handles PKCE via cookies)
-                  await signInWithGoogle();
-                  // The browser navigates away — no need to handle the response
-                } catch (err) {
-                  setAuthError(err.message);
-                  setAuthLoading(false);
-                }
-              }}
-              disabled={authLoading}
-              className="w-full flex items-center justify-center gap-2.5 px-4 py-2.5 rounded-xl border border-black/10 text-sm text-black hover:border-black/25 hover:text-black active:scale-[0.98] transition-all duration-150 disabled:opacity-40"
-            >
-              <svg className="w-4 h-4" viewBox="0 0 24 24"><path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92a5.06 5.06 0 0 1-2.2 3.32v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.1z"/><path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/><path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z"/><path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"/></svg>
-              {authLoading ? 'Connecting…' : `Continue with Google`}
-            </button>
-
-            {/* Divider */}
-            <div className="flex items-center gap-3 my-4">
-              <div className="flex-1 border-t border-black/8" />
-              <span className="text-[11px] text-black uppercase tracking-wider">or</span>
-              <div className="flex-1 border-t border-black/8" />
-            </div>
-
-            {/* Email / Password form */}
-            <div className="space-y-3">
-              <div>
-                <input
-                  type="email"
-                  placeholder="Email"
-                  value={authEmail}
-                  onChange={(e) => setAuthEmail(e.target.value)}
-                  className="w-full bg-white text-black text-sm rounded-xl px-3.5 py-2.5 outline-none placeholder:text-black border border-black/10 focus:border-black/25 transition-all duration-150"
-                />
-              </div>
-              <div>
-                <input
-                  type="password"
-                  placeholder="Password"
-                  value={authPassword}
-                  onChange={(e) => setAuthPassword(e.target.value)}
-                  onKeyDown={(e) => { if (e.key === 'Enter') document.getElementById('auth-submit')?.click(); }}
-                  className="w-full bg-white text-black text-sm rounded-xl px-3.5 py-2.5 outline-none placeholder:text-black border border-black/10 focus:border-black/25 transition-all duration-150"
-                />
-              </div>
-
-              {authError && (
-                <div className="px-3 py-2 rounded-lg bg-red-50 border border-red-200 text-[11px] text-red-600">
-                  {authError}
-                </div>
-              )}
-
-              {authSuccessMsg && (
-                <div className="px-3 py-2 rounded-lg bg-emerald-50 border border-emerald-200 text-[11px] text-emerald-600">
-                  {authSuccessMsg}
-                </div>
-              )}
-
-              {authMode === 'register' && !authSuccessMsg && (
-                <div className="px-3 py-2 rounded-lg bg-blue-50 border border-blue-200 text-[11px] text-blue-600 leading-relaxed">
-                  After registering, check your email to confirm your account before signing in.
-                </div>
-              )}
-
-              <button
-                id="auth-submit"
-                onClick={async () => {
-                  if (!authEmail || !authPassword) return;
-                  setAuthLoading(true);
-                  setAuthError(null);
-                  setAuthSuccessMsg(null);
-                  try {
-                    const endpoint = authMode === 'login' ? '/api/auth/signin' : '/api/auth/signup';
-                    const res = await fetch(endpoint, {
-                      method: 'POST',
-                      headers: { 'Content-Type': 'application/json' },
-                      body: JSON.stringify({ email: authEmail, password: authPassword }),
-                    });
-                    const data = await res.json();
-                    if (!res.ok) {
-                      setAuthError(data.error || 'Authentication failed');
-                    } else if (authMode === 'register' && !data.session) {
-                      // Email confirmation required
-                      setAuthSuccessMsg(data.message || 'Account created! Check your email to confirm your sign-in.');
-                      setAuthEmail('');
-                      setAuthPassword('');
-                    } else if (data.session) {
-                      // Successful login or registration with session
-                      setTokens(data.session.access_token, data.session.refresh_token);
-                      setUser(data.user);
-                      setAuthOpen(false);
-                      setAuthEmail('');
-                      setAuthPassword('');
-                    }
-                  } catch (err) {
-                    setAuthError(err.message);
-                  }
-                  setAuthLoading(false);
-                }}
-                disabled={authLoading || !authEmail || !authPassword}
-                className="w-full py-2.5 rounded-xl bg-black text-white text-sm font-medium active:scale-[0.98] transition-all duration-150 disabled:opacity-30 disabled:cursor-not-allowed hover:bg-black/85"
-              >
-                {authLoading ? 'Please wait…' : authMode === 'login' ? 'Sign in' : 'Create account'}
-              </button>
-
-              <p className="text-center text-xs text-black">
-                {authMode === 'login' ? (
-                  <>Don&apos;t have an account?{' '}
-                    <button onClick={() => { setAuthMode('register'); setAuthError(null); }} className="underline hover:text-black transition-colors duration-150">
-                      Register
-                    </button>
-                  </>
-                ) : (
-                  <>Already have an account?{' '}
-                    <button onClick={() => { setAuthMode('login'); setAuthError(null); }} className="underline hover:text-black transition-colors duration-150">
-                      Sign in
-                    </button>
-                  </>
-                )}
-              </p>
-            </div>
-          </div>
-        </div>
-      )}
-
       {/* ── File preview modal ──────────────────────────────────── */}
       {previewFile && (
         <FilePreviewModal file={previewFile} onClose={() => setPreviewFile(null)} />
@@ -1812,6 +1589,6 @@ export default function ChatPage() {
         </>,
         document.body
       )}
-    </div>
+    </>
   );
 }
